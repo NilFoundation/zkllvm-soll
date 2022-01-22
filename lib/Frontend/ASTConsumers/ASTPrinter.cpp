@@ -2,9 +2,11 @@
 #include "soll/AST/AST.h"
 #include "soll/AST/ASTConsumer.h"
 #include "soll/Frontend/ASTConsumers.h"
+#if LLVM_VERSION_MAJOR >= 13
+#include <llvm/ADT/StringExtras.h>
+#endif
 #include <llvm/ADT/Twine.h>
 #include <llvm/Support/raw_ostream.h>
-
 namespace {
 
 std::string ToString(soll::UnaryOperatorKind op) {
@@ -133,11 +135,15 @@ std::string ToString(soll::TypePtr type) {
     return "bool";
   case soll::Type::Category::Array: {
     auto at = static_cast<const soll::ArrayType *>(type.get());
-    llvm::SmallVector<char> Str;
-    at->getLength().toString(Str, 10, false);
-    return llvm::Twine(
-               ToString(at->getElementType()) + "[" +
-               (at->isDynamicSized() ? llvm::SmallVector<char>() : Str) + "]")
+    return llvm::Twine(ToString(at->getElementType()) + "[" +
+                       (at->isDynamicSized()
+                            ? ""
+#if LLVM_VERSION_MAJOR >= 13
+                            : toString(at->getLength(), 10, false)) +
+#else
+                            : at->getLength().toString(10, false)) +
+#endif
+                       "]")
         .str();
   }
   case soll::Type::Category::Tuple: {
@@ -494,9 +500,12 @@ void ASTPrinter::visit(StringLiteralType &literal) {
 void ASTPrinter::visit(NumberLiteralType &literal) {
   const bool Signed =
       static_cast<IntegerType *>(literal.getType().get())->isSigned();
-  llvm::SmallVector<char> Str;
-  literal.getValue().toString(Str, 10, Signed);
-  os() << indent() << "NumberLiteral " << Str << "\n";
+  os() << indent() << "NumberLiteral "
+#if LLVM_VERSION_MAJOR >= 13
+       << toString(literal.getValue(), 10, Signed) << "\n";
+#else
+       << literal.getValue().toString(10, Signed) << "\n";
+#endif
   ConstStmtVisitor::visit(literal);
   unindent();
 }

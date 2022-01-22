@@ -3,6 +3,7 @@
 #include "soll/Basic/FileSystemOptions.h"
 #include <llvm/ADT/StringMap.h>
 #include <llvm/ADT/IntrusiveRefCntPtr.h>
+#include <llvm/ADT/StringMap.h>
 #include <llvm/Support/Allocator.h>
 #include <llvm/Support/VirtualFileSystem.h>
 #include <map>

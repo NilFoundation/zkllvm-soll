@@ -66,8 +66,9 @@ ExprValuePtr ExprEmitter::structIndexAccess(const ExprValuePtr StructValue,
   auto ET = STy->getElementTypes()[ElementIndex];
   switch (StructValue->getValueKind()) {
   case ValueKind::VK_SValue: {
-    llvm::Value *Base =
-        Builder.CreateLoad(STy->getLLVMType(), StructValue->getValue());
+    llvm::Type *Ty =
+        StructValue->getValue()->getType()->getPointerElementType();
+    llvm::Value *Base = Builder.CreateLoad(Ty, StructValue->getValue());
     llvm::Value *Pos = Builder.getIntN(256, STy->getStoragePos(ElementIndex));
     llvm::Value *ElemAddress = Builder.CreateAdd(Base, Pos);
     llvm::Value *Address = Builder.CreateAlloca(CGF.Int256Ty);
@@ -81,8 +82,8 @@ ExprValuePtr ExprEmitter::structIndexAccess(const ExprValuePtr StructValue,
     Indices[0] = llvm::ConstantInt::get(VMContext, llvm::APInt(32, 0, true));
     Indices[1] =
         llvm::ConstantInt::get(VMContext, llvm::APInt(32, ElementIndex, true));
-    llvm::Value *ElementPtr =
-        Builder.CreateGEP(STy->getLLVMType(), Base, Indices);
+    llvm::Value *ElementPtr = Builder.CreateGEP(
+        Base->getType()->getPointerElementType(), Base, Indices);
     return std::make_shared<ExprValue>(ET.get(), ValueKind::VK_LValue,
                                        ElementPtr);
   }
@@ -116,8 +117,7 @@ ExprValuePtr ExprEmitter::arrayIndexAccess(const ExprValuePtr &Base,
     return std::make_shared<ExprValue>(Ty, ValueKind::VK_LValue, Address);
   }
 
-  llvm::Value *Pos =
-      Builder.CreateLoad(CGF.getCodeGenModule().getLLVMType(ArrTy), Value);
+  llvm::Value *Pos = Builder.CreateLoad(CGM.Int256Ty, Value);
   if (ArrTy->isDynamicSized()) {
     // load array size and check
     auto LengthTy = IntegerType::getIntN(256);
@@ -599,7 +599,7 @@ ExprValuePtr ExprEmitter::visit(const CastExpr *CE) {
       llvm::Value *Src = Builder.CreateExtractValue(In, {1});
       CGM.emitMemcpy(Dst, Src, Builder.CreateZExtOrTrunc(Length, CGM.Int32Ty));
       return ExprValue::getRValue(
-          CE, CGM.getEndianlessValue(Builder.CreateLoad(Ptr->getType(), Ptr)));
+          CE, CGM.getEndianlessValue(Builder.CreateLoad(CGM.Int256Ty, Ptr)));
     }
     assert(false);
     break;
@@ -712,8 +712,9 @@ ExprValuePtr ExprEmitter::visit(const IndexAccess *IA) {
   const Type *Ty = IA->getType().get();
 
   if (const auto *MType = static_cast<const MappingType *>(Base->getType())) {
+    llvm::Type *LLTy = Base->getValue()->getType()->getPointerElementType();
     llvm::Value *Pos =
-        CGM.getEndianlessValue(Builder.CreateLoad(Base->getValue()));
+        CGM.getEndianlessValue(Builder.CreateLoad(LLTy, Base->getValue()));
     llvm::Value *Key;
     if (MType->getKeyType()->isDynamic()) {
       Key = Index->load(Builder, CGM);
@@ -762,7 +763,7 @@ ExprValuePtr ExprEmitter::visit(const MemberExpr *ME) {
       llvm::Value *ValPtr = Builder.CreateAlloca(Builder.getInt32Ty());
       CGM.emitCallDataCopy(Builder.CreateBitCast(ValPtr, CGF.Int8PtrTy),
                            Builder.getInt32(0), Builder.getInt32(4));
-      llvm::Value *Val = Builder.CreateLoad(CGF.Int256Ty, ValPtr);
+      llvm::Value *Val = Builder.CreateLoad(Builder.getInt32Ty(), ValPtr);
       return ExprValue::getRValue(ME, Val);
     }
     case Identifier::SpecialIdentifier::tx_gasprice: {

@@ -10,12 +10,13 @@ add_llvm_library(sollCodeGen
   ModuleBuilder.cpp
   ABICodec.cpp
   ExprEmitter.cpp
+
   LINK_LIBS
   sollAST
   sollFrontend
   lldWasm
   lldCommon
-  binaryen
+
   LINK_COMPONENTS
   codegen
   passes

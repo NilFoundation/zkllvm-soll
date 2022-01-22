@@ -6,7 +6,6 @@
 #include <llvm/ADT/IntrusiveRefCntPtr.h>
 #include <llvm/ADT/StringMap.h>
 #include <llvm/IR/Value.h>
-
 namespace soll {
 
 class ASTContext : public llvm::RefCountedBase<ASTContext> {

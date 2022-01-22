@@ -952,10 +952,10 @@ void CodeGenModule::initMemcpy() {
   llvm::PHINode *DstPHI = Builder.CreatePHI(BytesElemPtrTy, 2);
   llvm::PHINode *LengthPHI = Builder.CreatePHI(Int32Ty, 2);
 
-  llvm::Value *Value = Builder.CreateLoad(BytesElemPtrTy, SrcPHI);
+  llvm::Value *Value = Builder.CreateLoad(BytesElemTy, SrcPHI);
   Builder.CreateStore(Value, DstPHI);
-  llvm::Value *Src2 = Builder.CreateInBoundsGEP(BytesElemPtrTy, SrcPHI, {One});
-  llvm::Value *Dst2 = Builder.CreateInBoundsGEP(BytesElemPtrTy, DstPHI, {One});
+  llvm::Value *Src2 = Builder.CreateInBoundsGEP(BytesElemTy, SrcPHI, {One});
+  llvm::Value *Dst2 = Builder.CreateInBoundsGEP(BytesElemTy, DstPHI, {One});
   llvm::Value *Length2 = Builder.CreateSub(LengthPHI, One);
   llvm::Value *Cmp2 = Builder.CreateICmpNE(Length2, Builder.getInt32(0));
   Builder.CreateCondBr(Cmp2, Loop, Return);
@@ -1374,7 +1374,8 @@ llvm::Value *CodeGenModule::emitABILoadParamStatic(const Type *Ty,
     LLVMTy = getLLVMType(Ty);
   }
   llvm::Value *CPtr = Builder.CreateInBoundsGEP(
-      Buffer->getType(), Buffer, {Builder.getInt32(Offset)}, Name + ".cptr");
+      Buffer->getType()->getPointerElementType(), Buffer,
+      {Builder.getInt32(Offset)}, Name + ".cptr");
   llvm::Value *Ptr = Builder.CreateBitCast(CPtr, Int256PtrTy, Name + ".ptr");
   llvm::Value *ValB = Builder.CreateLoad(Int256Ty, Ptr, Name + ".b");
   llvm::Value *Val = getEndianlessValue(ValB);
@@ -1405,15 +1406,17 @@ llvm::Value *CodeGenModule::emitABILoadParamDynamic(const Type *Ty,
       __builtin_unreachable();
     }
   } else if (static_cast<const StringType *>(Ty)) {
-    llvm::Value *CPtr = Builder.CreateInBoundsGEP(Buffer->getType(), Buffer,
-                                                  {Offset}, Name + ".cptr");
+    llvm::Value *CPtr =
+        Builder.CreateInBoundsGEP(Buffer->getType()->getPointerElementType(),
+                                  Buffer, {Offset}, Name + ".cptr");
     llvm::Value *String = llvm::UndefValue::get(StringTy);
     String = Builder.CreateInsertValue(String, Size, {0});
     String = Builder.CreateInsertValue(String, CPtr, {1});
     return String;
   } else if (static_cast<const BytesType *>(Ty)) {
-    llvm::Value *CPtr = Builder.CreateInBoundsGEP(Buffer->getType(), Buffer,
-                                                  {Offset}, Name + ".cptr");
+    llvm::Value *CPtr =
+        Builder.CreateInBoundsGEP(Buffer->getType()->getPointerElementType(),
+                                  Buffer, {Offset}, Name + ".cptr");
     llvm::Value *Bytes = llvm::UndefValue::get(BytesTy);
     Bytes = Builder.CreateInsertValue(Bytes, Size, {0});
     Bytes = Builder.CreateInsertValue(Bytes, CPtr, {1});
@@ -1606,7 +1609,7 @@ void CodeGenModule::emitStructDecl(const StructDecl *SD) {
 
 void CodeGenModule::emitYulObject(const YulObject *YO) {
   {
-    const std::string Name = YO->getUniqueName();
+    const std::string Name = YO->getUniqueName().str();
     emitNestedObjectGetter(Name + ".object");
     NestedEntries.emplace_back(Name + ".main", Name + ".object", nullptr);
     /*
@@ -1619,8 +1622,30 @@ void CodeGenModule::emitYulObject(const YulObject *YO) {
     */
   }
   assert(nullptr != YO->getCode());
+  if (YO->getName() == ".metadata") {
+    // ignore sub-object and code
+    for (const auto *D : YO->getDataList()) {
+      emitYulDataInMetadata(D);
+    }
+    return;
+  }
   for (const auto *O : YO->getObjectList()) {
     emitYulObject(O);
+    // FIXME
+    {
+      const std::string Name = O->getName().str();
+      emitNestedObjectGetter(Name + ".object");
+      NestedEntries.emplace_back(Name + ".main", Name + ".object", nullptr);
+      /*
+      llvm::Function *DataSize = llvm::Function::Create(
+          llvm::FunctionType::get(Int256Ty, false),
+          llvm::Function::InternalLinkage, ".datasize", TheModule);
+      llvm::Function *DataOffset = llvm::Function::Create(
+          llvm::FunctionType::get(Int8PtrTy, false),
+          llvm::Function::InternalLinkage, ".dataoffset", TheModule);
+      */
+      // LookupYulDataOrYulObject.try_emplace(Name, O);
+    }
     getEntry().clear();
     getEntry().resize(1);
   }
@@ -1656,9 +1681,29 @@ void CodeGenModule::emitYulCode(const YulCode *YC, llvm::StringRef Name) {
 void CodeGenModule::emitYulData(const YulData *YD) {
   llvm::StringRef Name = YD->getUniqueName();
   std::string Data = YD->getBody()->getValue();
+  if (YD->getName() == ".metadata") {
+    llvm::SmallVector<llvm::Metadata *, 8> Ops;
+    llvm::StringRef Name = YD->getName();
+    std::string Data = YD->getBody()->getValue();
+    Ops.push_back(llvm::MDString::get(VMContext, Name));
+    Ops.push_back(llvm::MDString::get(VMContext, Data));
+    auto MD = getModule().getOrInsertNamedMetadata("wasm.custom_sections");
+    MD->addOperand(llvm::MDTuple::get(VMContext, Ops));
+    return;
+  }
   llvm::GlobalVariable *Variable =
       createGlobalString(VMContext, getModule(), Data, Name);
   YulDataMap.try_emplace(YD, Variable);
+}
+
+void CodeGenModule::emitYulDataInMetadata(const YulData *YD) {
+  llvm::SmallVector<llvm::Metadata *, 8> Ops;
+  std::string Name = ".metadata." + YD->getName().str();
+  std::string Data = YD->getBody()->getValue();
+  Ops.push_back(llvm::MDString::get(VMContext, Name));
+  Ops.push_back(llvm::MDString::get(VMContext, Data));
+  auto MD = getModule().getOrInsertNamedMetadata("wasm.custom_sections");
+  MD->addOperand(llvm::MDTuple::get(VMContext, Ops));
 }
 
 std::string CodeGenModule::getMangledName(const CallableVarDecl *CVD) {
@@ -1851,7 +1896,7 @@ CodeGenModule::emitConcatBytes(llvm::ArrayRef<llvm::Value *> Values) {
   llvm::Value *Array = Builder.CreateAlloca(BytesElemTy, ArrayLength, "concat");
   llvm::Value *Index = Builder.getInt32(0);
   for (llvm::Value *Value : Values) {
-    llvm::Value *Ptr = Builder.CreateInBoundsGEP(Array, {Index});
+    llvm::Value *Ptr = Builder.CreateInBoundsGEP(BytesElemTy, Array, {Index});
     llvm::Type *Ty = Value->getType();
     if (isDynamicType(Ty)) {
       llvm::Value *Length = Builder.CreateZExtOrTrunc(
@@ -1891,7 +1936,7 @@ llvm::Value *CodeGenModule::emitGetCallValue() {
   } else if (isEWASM()) {
     llvm::Value *ValPtr = Builder.CreateAlloca(Int128Ty);
     Builder.CreateCall(Func_getCallValue, {ValPtr});
-    return Builder.CreateLoad(ValPtr);
+    return Builder.CreateLoad(Int128Ty, ValPtr);
   } else {
     __builtin_unreachable();
   }
@@ -1904,7 +1949,7 @@ llvm::Value *CodeGenModule::emitGetCaller() {
   } else if (isEWASM()) {
     llvm::Value *ValPtr = Builder.CreateAlloca(AddressTy);
     Builder.CreateCall(Func_getCaller, {ValPtr});
-    return Builder.CreateLoad(ValPtr);
+    return Builder.CreateLoad(AddressTy, ValPtr);
   } else {
     __builtin_unreachable();
   }
@@ -1951,7 +1996,9 @@ void CodeGenModule::emitLog(llvm::Value *DataOffset, llvm::Value *DataLength,
           {Builder.CreatePtrToInt(
                Builder.CreateBitCast(DataOffset, Builder.getInt8PtrTy()),
                EVMIntTy),
-           Length, Builder.CreateLoad(Topics[0])});
+           Length,
+           Builder.CreateLoad(Topics[0]->getType()->getPointerElementType(),
+                              Topics[0])});
       break;
     case 2:
       Builder.CreateCall(
@@ -1959,8 +2006,11 @@ void CodeGenModule::emitLog(llvm::Value *DataOffset, llvm::Value *DataLength,
           {Builder.CreatePtrToInt(
                Builder.CreateBitCast(DataOffset, Builder.getInt8PtrTy()),
                EVMIntTy),
-           Length, Builder.CreateLoad(Topics[0]),
-           Builder.CreateLoad(Topics[1])});
+           Length,
+           Builder.CreateLoad(Topics[0]->getType()->getPointerElementType(),
+                              Topics[0]),
+           Builder.CreateLoad(Topics[1]->getType()->getPointerElementType(),
+                              Topics[1])});
       break;
     case 3:
       Builder.CreateCall(
@@ -1968,8 +2018,13 @@ void CodeGenModule::emitLog(llvm::Value *DataOffset, llvm::Value *DataLength,
           {Builder.CreatePtrToInt(
                Builder.CreateBitCast(DataOffset, Builder.getInt8PtrTy()),
                EVMIntTy),
-           Length, Builder.CreateLoad(Topics[0]), Builder.CreateLoad(Topics[1]),
-           Builder.CreateLoad(Topics[2])});
+           Length,
+           Builder.CreateLoad(Topics[0]->getType()->getPointerElementType(),
+                              Topics[0]),
+           Builder.CreateLoad(Topics[1]->getType()->getPointerElementType(),
+                              Topics[1]),
+           Builder.CreateLoad(Topics[2]->getType()->getPointerElementType(),
+                              Topics[2])});
       break;
     case 4:
       Builder.CreateCall(
@@ -1977,8 +2032,15 @@ void CodeGenModule::emitLog(llvm::Value *DataOffset, llvm::Value *DataLength,
           {Builder.CreatePtrToInt(
                Builder.CreateBitCast(DataOffset, Builder.getInt8PtrTy()),
                EVMIntTy),
-           Length, Builder.CreateLoad(Topics[0]), Builder.CreateLoad(Topics[1]),
-           Builder.CreateLoad(Topics[2]), Builder.CreateLoad(Topics[3])});
+           Length,
+           Builder.CreateLoad(Topics[0]->getType()->getPointerElementType(),
+                              Topics[0]),
+           Builder.CreateLoad(Topics[1]->getType()->getPointerElementType(),
+                              Topics[1]),
+           Builder.CreateLoad(Topics[2]->getType()->getPointerElementType(),
+                              Topics[2]),
+           Builder.CreateLoad(Topics[3]->getType()->getPointerElementType(),
+                              Topics[3])});
       break;
     default:
       __builtin_unreachable();
@@ -2019,7 +2081,7 @@ llvm::Value *CodeGenModule::emitStorageLoad(llvm::Value *Address) {
     llvm::Value *ValPtr = Builder.CreateAlloca(Int256Ty, nullptr);
     Builder.CreateStore(Address, AddressPtr);
     Builder.CreateCall(Func_storageLoad, {AddressPtr, ValPtr});
-    return Builder.CreateLoad(ValPtr);
+    return Builder.CreateLoad(Int256Ty, ValPtr);
   } else {
     __builtin_unreachable();
   }
@@ -2352,7 +2414,7 @@ llvm::Value *CodeGenModule::emitGetTxGasPrice() {
   } else if (isEWASM()) {
     llvm::Value *ValPtr = Builder.CreateAlloca(Int128Ty);
     Builder.CreateCall(Func_getTxGasPrice, {ValPtr});
-    return Builder.CreateLoad(ValPtr);
+    return Builder.CreateLoad(Int128Ty, ValPtr);
   } else {
     __builtin_unreachable();
   }
@@ -2365,7 +2427,7 @@ llvm::Value *CodeGenModule::emitGetTxOrigin() {
   } else if (isEWASM()) {
     llvm::Value *ValPtr = Builder.CreateAlloca(AddressTy);
     Builder.CreateCall(Func_getTxOrigin, {ValPtr});
-    return Builder.CreateLoad(ValPtr);
+    return Builder.CreateLoad(AddressTy, ValPtr);
   } else {
     __builtin_unreachable();
   }
@@ -2378,7 +2440,7 @@ llvm::Value *CodeGenModule::emitGetBlockCoinbase() {
   } else if (isEWASM()) {
     llvm::Value *ValPtr = Builder.CreateAlloca(AddressTy);
     Builder.CreateCall(Func_getBlockCoinbase, {ValPtr});
-    return Builder.CreateLoad(ValPtr);
+    return Builder.CreateLoad(AddressTy, ValPtr);
   } else {
     __builtin_unreachable();
   }
@@ -2390,7 +2452,7 @@ llvm::Value *CodeGenModule::emitGetBlockDifficulty() {
   } else if (isEWASM()) {
     llvm::Value *ValPtr = Builder.CreateAlloca(Int256Ty);
     Builder.CreateCall(Func_getBlockDifficulty, {ValPtr});
-    return Builder.CreateLoad(ValPtr);
+    return Builder.CreateLoad(Int256Ty, ValPtr);
   } else {
     __builtin_unreachable();
   }
@@ -2431,7 +2493,7 @@ llvm::Value *CodeGenModule::emitGetBlockHash(llvm::Value *Number) {
     llvm::Value *ValPtr = Builder.CreateAlloca(Int256Ty);
     Builder.CreateCall(Func_getBlockHash,
                        {Builder.CreateZExtOrTrunc(Number, Int64Ty), ValPtr});
-    return Builder.CreateLoad(ValPtr);
+    return Builder.CreateLoad(Int256Ty, ValPtr);
   } else {
     __builtin_unreachable();
   }
@@ -2449,7 +2511,7 @@ llvm::Value *CodeGenModule::emitGetExternalBalance(llvm::Value *Address) {
     Builder.CreateCall(Func_getExternalBalance,
                        {Builder.CreateBitCast(AddressPtr, Int32PtrTy),
                         Builder.CreateBitCast(ValPtr, Int32PtrTy)});
-    return Builder.CreateLoad(ValPtr);
+    return Builder.CreateLoad(Int128Ty, ValPtr);
   } else {
     __builtin_unreachable();
   }
@@ -2462,7 +2524,7 @@ llvm::Value *CodeGenModule::emitGetAddress() {
   } else if (isEWASM()) {
     llvm::Value *ValPtr = Builder.CreateAlloca(AddressTy);
     Builder.CreateCall(Func_getAddress, {ValPtr});
-    return Builder.CreateLoad(ValPtr);
+    return Builder.CreateLoad(AddressTy, ValPtr);
   } else {
     __builtin_unreachable();
   }
