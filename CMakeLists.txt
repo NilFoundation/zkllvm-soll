@@ -32,7 +32,7 @@ configure_file(
   ${CMAKE_CURRENT_BINARY_DIR}/include/soll/Config/Config.h
   )
 
-find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}")
+find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_DIR}")
 list(APPEND CMAKE_MODULE_PATH ${LLVM_DIR})
 include(AddLLVM)
 
