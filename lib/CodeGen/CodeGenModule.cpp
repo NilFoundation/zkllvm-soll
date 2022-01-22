@@ -155,7 +155,8 @@ void CodeGenModule::initUpdateMemorySize() {
   llvm::BasicBlock *Done =
       llvm::BasicBlock::Create(VMContext, "done", Func_updateMemorySize);
   Builder.SetInsertPoint(Entry);
-  llvm::Value *OrigSize = Builder.CreateLoad(MemorySize, "memory.size");
+  llvm::Value *OrigSize =
+      Builder.CreateLoad(Int256Ty, MemorySize, "memory.size");
   llvm::Value *EndPos = Builder.CreateAdd(Pos, Range);
   llvm::Value *Condition = Builder.CreateICmpUGT(EndPos, OrigSize);
   Builder.CreateCondBr(Condition, Update, Done);
@@ -951,10 +952,10 @@ void CodeGenModule::initMemcpy() {
   llvm::PHINode *DstPHI = Builder.CreatePHI(BytesElemPtrTy, 2);
   llvm::PHINode *LengthPHI = Builder.CreatePHI(Int32Ty, 2);
 
-  llvm::Value *Value = Builder.CreateLoad(SrcPHI);
+  llvm::Value *Value = Builder.CreateLoad(BytesElemPtrTy, SrcPHI);
   Builder.CreateStore(Value, DstPHI);
-  llvm::Value *Src2 = Builder.CreateInBoundsGEP(SrcPHI, {One});
-  llvm::Value *Dst2 = Builder.CreateInBoundsGEP(DstPHI, {One});
+  llvm::Value *Src2 = Builder.CreateInBoundsGEP(BytesElemPtrTy, SrcPHI, {One});
+  llvm::Value *Dst2 = Builder.CreateInBoundsGEP(BytesElemPtrTy, DstPHI, {One});
   llvm::Value *Length2 = Builder.CreateSub(LengthPHI, One);
   llvm::Value *Cmp2 = Builder.CreateICmpNE(Length2, Builder.getInt32(0));
   Builder.CreateCondBr(Cmp2, Loop, Return);
@@ -1036,7 +1037,7 @@ void CodeGenModule::initKeccak256() {
         Builder.CreateBitCast(ResultPtr, Int8PtrTy, "result.vptr");
     Builder.CreateCall(Func_returnDataCopy,
                        {ResultVPtr, Builder.getInt32(0), Builder.getInt32(32)});
-    llvm::Value *Result = Builder.CreateLoad(ResultPtr);
+    llvm::Value *Result = Builder.CreateLoad(Int256Ty, ResultPtr);
 
     Builder.CreateRet(emitEndianConvert(Result));
   } else {
@@ -1075,7 +1076,7 @@ void CodeGenModule::initSha256() {
         Builder.CreateBitCast(ResultPtr, Int8PtrTy, "result.vptr");
     Builder.CreateCall(Func_returnDataCopy,
                        {ResultVPtr, Builder.getInt32(0), Builder.getInt32(32)});
-    llvm::Value *Result = Builder.CreateLoad(ResultPtr);
+    llvm::Value *Result = Builder.CreateLoad(Int256Ty, ResultPtr);
 
     Builder.CreateRet(emitEndianConvert(Result));
   } else {
@@ -1105,7 +1106,7 @@ void CodeGenModule::initRipemd160() {
     emitCallStatic(Fee, AddressPtr, Ptr, Length, ResultPtr,
                    Builder.getIntN(256, 0x20));
     llvm::Value *Result =
-        Builder.CreateTrunc(Builder.CreateLoad(ResultPtr), Int160Ty);
+        Builder.CreateTrunc(Builder.CreateLoad(EVMIntTy, ResultPtr), Int160Ty);
     Builder.CreateRet(Result);
   } else if (isEWASM()) {
     llvm::Value *AddressPtr =
@@ -1121,7 +1122,7 @@ void CodeGenModule::initRipemd160() {
         Builder.CreateBitCast(ResultPtr, Int8PtrTy, "result.vptr");
     Builder.CreateCall(Func_returnDataCopy,
                        {ResultVPtr, Builder.getInt32(0), Builder.getInt32(32)});
-    llvm::Value *Result = Builder.CreateLoad(ResultPtr);
+    llvm::Value *Result = Builder.CreateLoad(Int256Ty, ResultPtr);
 
     Builder.CreateRet(Builder.CreateTrunc(emitEndianConvert(Result), Int160Ty));
   } else {
@@ -1169,7 +1170,7 @@ void CodeGenModule::initEcrecover() {
     emitCallStatic(Fee, AddressPtr, Ptr, Length, ResultPtr,
                    Builder.getIntN(256, 0x20));
     llvm::Value *Result =
-        Builder.CreateTrunc(Builder.CreateLoad(ResultPtr), AddressTy);
+        Builder.CreateTrunc(Builder.CreateLoad(EVMIntTy, ResultPtr), AddressTy);
     Builder.CreateRet(Result);
   } else if (isEWASM()) {
     llvm::Value *AddressPtr =
@@ -1185,7 +1186,7 @@ void CodeGenModule::initEcrecover() {
         Builder.CreateBitCast(ResultPtr, Int8PtrTy, "result.vptr");
     Builder.CreateCall(Func_returnDataCopy,
                        {ResultVPtr, Builder.getInt32(0), Builder.getInt32(32)});
-    llvm::Value *Result = Builder.CreateLoad(ResultPtr);
+    llvm::Value *Result = Builder.CreateLoad(Int256Ty, ResultPtr);
 
     Builder.CreateRet(Builder.CreateTrunc(emitEndianConvert(Result), Int160Ty));
   } else {
@@ -1195,13 +1196,13 @@ void CodeGenModule::initEcrecover() {
 
 void CodeGenModule::emitContractDecl(const ContractDecl *CD) {
   for (const auto *D : CD->getSubNodes()) {
-    if (const auto *ED = dynamic_cast<const EventDecl *>(D)) {
+    if (const auto *ED = static_cast<const EventDecl *>(D)) {
       emitEventDecl(ED);
-    } else if (const auto *FD = dynamic_cast<const FunctionDecl *>(D)) {
+    } else if (const auto *FD = static_cast<const FunctionDecl *>(D)) {
       emitFunctionDecl(FD);
-    } else if (const auto *VD = dynamic_cast<const VarDecl *>(D)) {
+    } else if (const auto *VD = static_cast<const VarDecl *>(D)) {
       emitVarDecl(VD);
-    } else if (const auto *SD = dynamic_cast<const StructDecl *>(D)) {
+    } else if (const auto *SD = static_cast<const StructDecl *>(D)) {
       emitStructDecl(SD);
     } else {
       assert(false && "unknown subnode type!");
@@ -1350,7 +1351,7 @@ llvm::Value *CodeGenModule::emitABILoadParamStatic(const Type *Ty,
                                                    llvm::Value *Buffer,
                                                    std::uint32_t Offset) {
   llvm::Type *LLVMTy;
-  if (const auto *ArrayTy = dynamic_cast<const ArrayType *>(Ty)) {
+  if (const auto *ArrayTy = static_cast<const ArrayType *>(Ty)) {
     if (!ArrayTy->isDynamicSized()) {
       const Type *ElemTy = ArrayTy->getElementType().get();
       const std::uint32_t Size = ElemTy->getABIStaticSize();
@@ -1365,15 +1366,15 @@ llvm::Value *CodeGenModule::emitABILoadParamStatic(const Type *Ty,
       return Result;
     }
     LLVMTy = Int256Ty;
-  } else if (dynamic_cast<const StringType *>(Ty)) {
+  } else if (static_cast<const StringType *>(Ty)) {
     LLVMTy = Int256Ty;
-  } else if (dynamic_cast<const BytesType *>(Ty)) {
+  } else if (static_cast<const BytesType *>(Ty)) {
     LLVMTy = Int256Ty;
   } else {
     LLVMTy = getLLVMType(Ty);
   }
   llvm::Value *CPtr = Builder.CreateInBoundsGEP(
-      Buffer, {Builder.getInt32(Offset)}, Name + ".cptr");
+      Buffer->getType(), Buffer, {Builder.getInt32(Offset)}, Name + ".cptr");
   llvm::Value *Ptr = Builder.CreateBitCast(CPtr, Int256PtrTy, Name + ".ptr");
   llvm::Value *ValB = Builder.CreateLoad(Int256Ty, Ptr, Name + ".b");
   llvm::Value *Val = getEndianlessValue(ValB);
@@ -1385,7 +1386,7 @@ llvm::Value *CodeGenModule::emitABILoadParamDynamic(const Type *Ty,
                                                     llvm::StringRef Name,
                                                     llvm::Value *Buffer,
                                                     llvm::Value *Offset) {
-  if (const auto *ArrayTy = dynamic_cast<const ArrayType *>(Ty)) {
+  if (const auto *ArrayTy = static_cast<const ArrayType *>(Ty)) {
     if (!ArrayTy->isDynamicSized()) {
       const Type *ElemTy = ArrayTy->getElementType().get();
       llvm::Value *Result = llvm::UndefValue::get(getLLVMType(ArrayTy));
@@ -1403,16 +1404,16 @@ llvm::Value *CodeGenModule::emitABILoadParamDynamic(const Type *Ty,
       assert(false && "Dynamic array argument not supported yet!");
       __builtin_unreachable();
     }
-  } else if (dynamic_cast<const StringType *>(Ty)) {
-    llvm::Value *CPtr =
-        Builder.CreateInBoundsGEP(Buffer, {Offset}, Name + ".cptr");
+  } else if (static_cast<const StringType *>(Ty)) {
+    llvm::Value *CPtr = Builder.CreateInBoundsGEP(Buffer->getType(), Buffer,
+                                                  {Offset}, Name + ".cptr");
     llvm::Value *String = llvm::UndefValue::get(StringTy);
     String = Builder.CreateInsertValue(String, Size, {0});
     String = Builder.CreateInsertValue(String, CPtr, {1});
     return String;
-  } else if (dynamic_cast<const BytesType *>(Ty)) {
-    llvm::Value *CPtr =
-        Builder.CreateInBoundsGEP(Buffer, {Offset}, Name + ".cptr");
+  } else if (static_cast<const BytesType *>(Ty)) {
+    llvm::Value *CPtr = Builder.CreateInBoundsGEP(Buffer->getType(), Buffer,
+                                                  {Offset}, Name + ".cptr");
     llvm::Value *Bytes = llvm::UndefValue::get(BytesTy);
     Bytes = Builder.CreateInsertValue(Bytes, Size, {0});
     Bytes = Builder.CreateInsertValue(Bytes, CPtr, {1});
@@ -1536,7 +1537,7 @@ void CodeGenModule::emitABILoad(const FunctionDecl *FD,
       Tys.emplace_back(ParamsTy);
       Results.emplace_back(Result);
     } else {
-      auto RTy = dynamic_cast<const ReturnTupleType *>(ParamsTy);
+      auto RTy = static_cast<const ReturnTupleType *>(ParamsTy);
       unsigned ElementIndex = 0;
       for (auto ET : RTy->getElementTypes()) {
         Tys.emplace_back(ET.get());
@@ -1593,12 +1594,12 @@ void CodeGenModule::emitVarDecl(const VarDecl *VD) {
 }
 
 void CodeGenModule::emitStructDecl(const StructDecl *SD) {
-  if (auto STy = dynamic_cast<StructType *>(SD->getType().get())) {
+  if (auto STy = static_cast<StructType *>(SD->getType().get())) {
     std::vector<llvm::Type *> LLVMTy;
     for (auto ET : STy->getElementTypes()) {
       LLVMTy.emplace_back(getLLVMType(ET.get()));
     }
-    auto Tp = llvm::StructType::create(VMContext, LLVMTy, SD->getName());
+    auto *Tp = llvm::StructType::create(VMContext, LLVMTy, SD->getName());
     STy->setLLVMType(Tp);
   }
 }
@@ -1678,11 +1679,10 @@ std::string CodeGenModule::getMangledName(const CallableVarDecl *CVD) {
 llvm::Type *CodeGenModule::getLLVMType(const Type *Ty) {
   switch (Ty->getCategory()) {
   case Type::Category::Integer:
-    return Builder.getIntNTy(
-        dynamic_cast<const IntegerType *>(Ty)->getBitNum());
+    return Builder.getIntNTy(static_cast<const IntegerType *>(Ty)->getBitNum());
   case Type::Category::FixedBytes:
     return Builder.getIntNTy(
-        dynamic_cast<const FixedBytesType *>(Ty)->getBitNum());
+        static_cast<const FixedBytesType *>(Ty)->getBitNum());
   case Type::Category::Bool:
     return BoolTy;
   case Type::Category::Address:
@@ -1693,7 +1693,7 @@ llvm::Type *CodeGenModule::getLLVMType(const Type *Ty) {
   case Type::Category::Bytes:
     return BytesTy;
   case Type::Category::Array: {
-    auto ArrayTy = dynamic_cast<const ArrayType *>(Ty);
+    auto ArrayTy = static_cast<const ArrayType *>(Ty);
     if (ArrayTy->isDynamicSized()) {
       return llvm::PointerType::getUnqual(
           getLLVMType(ArrayTy->getElementType().get()));
@@ -1705,9 +1705,9 @@ llvm::Type *CodeGenModule::getLLVMType(const Type *Ty) {
   case Type::Category::Tuple:
     return nullptr;
   case Type::Category::ReturnTuple:
-    return dynamic_cast<const ReturnTupleType *>(Ty)->getLLVMType();
+    return static_cast<const ReturnTupleType *>(Ty)->getLLVMType();
   case Type::Category::Struct:
-    return dynamic_cast<const StructType *>(Ty)->getLLVMType();
+    return static_cast<const StructType *>(Ty)->getLLVMType();
   case Type::Category::Mapping:
     assert(false && "Mapping is unsupported!");
     __builtin_unreachable();
@@ -1732,7 +1732,7 @@ llvm::Type *CodeGenModule::getStaticLLVMType(const Type *Ty) {
   case Type::Category::Bytes:
     return Int256Ty;
   case Type::Category::Array: {
-    auto ArrayTy = dynamic_cast<const ArrayType *>(Ty);
+    auto ArrayTy = static_cast<const ArrayType *>(Ty);
     if (ArrayTy->isDynamicSized()) {
       return Int256Ty;
     } else {
@@ -1758,7 +1758,7 @@ llvm::FunctionType *CodeGenModule::getFunctionType(const CallableVarDecl *CVD) {
   llvm::Type *RetType;
   if (CVD->getReturnParams()->getParamsTy() == nullptr) {
     RetType = VoidTy;
-  } else if (auto RTy = dynamic_cast<ReturnTupleType *>(
+  } else if (auto RTy = static_cast<ReturnTupleType *>(
                  CVD->getReturnParams()->getParamsTy().get())) {
     std::vector<llvm::Type *> LLVMTy;
     for (auto ET : RTy->getElementTypes()) {

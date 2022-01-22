@@ -239,7 +239,7 @@ Sema::CreateMemberExpr(std::unique_ptr<Expr> &&BaseExpr, Token Tok) {
   llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
   const Expr *Base = BaseExpr.get();
 
-  if (auto *I = dynamic_cast<const Identifier *>(Base)) {
+  if (auto *I = static_cast<const Identifier *>(Base)) {
     if (I->isSpecialIdentifier()) {
       if (I->getSpecialIdentifier() == Identifier::SpecialIdentifier::this_) {
         return std::make_unique<MemberExpr>(L, std::move(BaseExpr),

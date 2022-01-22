@@ -94,9 +94,9 @@ bool isAllowedForTypecast(const Type *In, const Type *Out, bool IsLiteral,
     return true;
   }
   if (InC == Type::Category::Tuple && OutC == Type::Category::Tuple) {
-    auto InT = dynamic_cast<const TupleType *>(In);
-    auto OutT = dynamic_cast<const TupleType *>(Out);
-    auto TupleE = dynamic_cast<const TupleExpr *>(SE);
+    auto InT = static_cast<const TupleType *>(In);
+    auto OutT = static_cast<const TupleType *>(Out);
+    auto TupleE = static_cast<const TupleExpr *>(SE);
     assert(TupleE && "expect SE is a TupleExpr");
     if (InT->getElementTypes().size() != OutT->getElementTypes().size()) {
       return false;
@@ -107,13 +107,13 @@ bool isAllowedForTypecast(const Type *In, const Type *Out, bool IsLiteral,
     for (size_t Idx = 0; Idx < Size; ++Idx) {
       if (InT->getElementTypes()[Idx]) {
         if (OutT->getElementTypes()[Idx]) {
-          auto ICExpr = dynamic_cast<const ImplicitCastExpr *>(
+          auto ICExpr = static_cast<const ImplicitCastExpr *>(
               TupleE->getComponents()[Idx]);
           assert(ICExpr);
           auto CompExpr = ICExpr->getSubExpr();
           const bool IsLiteral =
-              dynamic_cast<const NumberLiteral *>(CompExpr) ||
-              dynamic_cast<const StringLiteral *>(CompExpr);
+              static_cast<const NumberLiteral *>(CompExpr) ||
+              static_cast<const StringLiteral *>(CompExpr);
           Result &= isAllowedForTypecast(InT->getElementTypes()[Idx].get(),
                                          OutT->getElementTypes()[Idx].get(),
                                          IsLiteral, CompExpr);
@@ -146,7 +146,7 @@ void setTypeForBinary(Sema &Actions, BinaryOperator &BO, ImplicitCastExpr *LHS,
     return;
   }
   if (BO.getOpcode() == BO_Exp) {
-    auto *RHSIntTy = dynamic_cast<IntegerType *>(RHSTy.get());
+    auto *RHSIntTy = static_cast<IntegerType *>(RHSTy.get());
     if (RHSIntTy->isSigned()) {
       Actions.Diag(BO.getLocation().getBegin(), diag::err_typecheck_exp_signed);
       return;
@@ -190,7 +190,7 @@ public:
     // Notes : All element are warpped by ImplicitCastExpr
     for (const auto &Comp : TE.getComponents()) {
       if (Comp) {
-        auto CastR = dynamic_cast<const ImplicitCastExpr *>(Comp);
+        auto CastR = static_cast<const ImplicitCastExpr *>(Comp);
         Types.emplace_back(CastR->getSubExpr()->getType());
       } else {
         Types.emplace_back(nullptr);
@@ -215,8 +215,8 @@ public:
         return;
       }
 
-      const bool IsLiteral = dynamic_cast<const NumberLiteralType *>(SE) ||
-                             dynamic_cast<const StringLiteralType *>(SE);
+      const bool IsLiteral = static_cast<const NumberLiteralType *>(SE) ||
+                             static_cast<const StringLiteralType *>(SE);
       if (!isAllowedForTypecast(InType.get(), OutType.get(), IsLiteral, SE)) {
         Actions.Diag(ICE.getLocation().getBegin(),
                      diag::err_typecheck_invalid_cast)
@@ -238,7 +238,7 @@ public:
   }
   void visit(ReturnStmtType &IS) override {
     StmtVisitor::visit(IS);
-    if (auto *IC = dynamic_cast<ImplicitCastExpr *>(IS.getRetValue())) {
+    if (auto *IC = static_cast<ImplicitCastExpr *>(IS.getRetValue())) {
       Actions.resolveImplicitCast(*IC, ReturnType, false);
     }
   }
@@ -256,8 +256,8 @@ public:
   }
   void visit(BinaryOperatorType &BO) override {
     StmtVisitor::visit(BO); // This is Strange.
-    if (auto *LHS = dynamic_cast<ImplicitCastExpr *>(BO.getLHS())) {
-      if (auto *RHS = dynamic_cast<ImplicitCastExpr *>(BO.getRHS())) {
+    if (auto *LHS = static_cast<ImplicitCastExpr *>(BO.getLHS())) {
+      if (auto *RHS = static_cast<ImplicitCastExpr *>(BO.getRHS())) {
         auto LHSTy = LHS->getSubExpr()->getType();
         auto RHSTy = RHS->getSubExpr()->getType();
         if (!LHSTy || !RHSTy) {
@@ -288,13 +288,13 @@ public:
     StmtVisitor::visit(IA);
     bool NeedIntegerSubscript = true;
     const Type *BaseTy = IA.getBase()->getType().get();
-    if (auto MT = dynamic_cast<const MappingType *>(BaseTy)) {
+    if (auto MT = static_cast<const MappingType *>(BaseTy)) {
       IA.setType(MT->getValueType());
       NeedIntegerSubscript = false;
-    } else if (auto AT = dynamic_cast<const ArrayType *>(BaseTy)) {
+    } else if (auto AT = static_cast<const ArrayType *>(BaseTy)) {
       IA.setType(AT->getElementType());
-    } else if (dynamic_cast<const StringType *>(BaseTy) ||
-               dynamic_cast<const BytesType *>(BaseTy)) {
+    } else if (static_cast<const StringType *>(BaseTy) ||
+               static_cast<const BytesType *>(BaseTy)) {
       IA.setType(Actions.getContext().FixedBytesTypeB1Ptr);
     } else {
       Actions.Diag(IA.getBase()->getLocation().getBegin(),
@@ -392,14 +392,14 @@ public:
       break;
     case Type::Category::Struct:
       if (auto *ST =
-              dynamic_cast<const StructType *>(ME.getBase()->getType().get())) {
+              static_cast<const StructType *>(ME.getBase()->getType().get())) {
         ME.setName(std::make_unique<Identifier>(
             Tok, ST->getElementTypes()[ST->getElementIndex(Name.str())]));
         return;
       }
       break;
     case Type::Category::Contract:
-      if (auto CT = dynamic_cast<const ContractType *>(
+      if (auto CT = static_cast<const ContractType *>(
               ME.getBase()->getType().get())) {
         for (auto FD : CT->getDecl()->getFuncs()) {
           if (FD->getName() == Name) {
@@ -453,7 +453,7 @@ public:
     StmtVisitor::visit(DS);
     if (DS.getValue()) {
       DS.getValue()->accept(*this);
-      if (auto *IC = dynamic_cast<ImplicitCastExpr *>(DS.getValue())) {
+      if (auto *IC = static_cast<ImplicitCastExpr *>(DS.getValue())) {
         IC->accept(*this);
         Actions.resolveImplicitCast(*IC, DS.getVarDecls().front()->getType(),
                                     false);
@@ -472,7 +472,7 @@ public:
   void visit(AsmAssignmentStmt &AS) override {
     StmtVisitor::visit(AS);
     AS.getRHS()->accept(*this);
-    if (auto *IC = dynamic_cast<ImplicitCastExpr *>(AS.getRHS())) {
+    if (auto *IC = static_cast<ImplicitCastExpr *>(AS.getRHS())) {
       IC->accept(*this);
       Actions.resolveImplicitCast(
           *IC, AS.getLHS()->getIdentifiers().front()->getType(), false);
@@ -510,7 +510,7 @@ public:
   }
   void visit(FunctionDecl &FD) override {
     DeclVisitor::visit(FD);
-    if (auto *Ty = dynamic_cast<FunctionType *>(FD.getType().get())) {
+    if (auto *Ty = static_cast<FunctionType *>(FD.getType().get())) {
       if (Ty->getReturnTypes().empty()) {
         TR.setReturnType(nullptr);
       } else {
@@ -527,7 +527,7 @@ public:
   void visit(VarDecl &VD) override {
     if (VD.getValue()) {
       VD.getValue()->accept(TR);
-      if (auto *IC = dynamic_cast<ImplicitCastExpr *>(VD.getValue())) {
+      if (auto *IC = static_cast<ImplicitCastExpr *>(VD.getValue())) {
         TR.getSema().resolveImplicitCast(*IC, VD.getType(), false);
       }
     }
@@ -536,7 +536,7 @@ public:
   void visit(AsmVarDeclType &VD) override {
     if (VD.getValue()) {
       VD.getValue()->accept(TR);
-      if (auto *IC = dynamic_cast<ImplicitCastExpr *>(VD.getValue())) {
+      if (auto *IC = static_cast<ImplicitCastExpr *>(VD.getValue())) {
         TR.getSema().resolveImplicitCast(*IC, VD.getType(), false);
       }
     }
@@ -555,7 +555,7 @@ void TypeResolver::visit(CallExprType &CE) {
   StmtVisitor::visit(CE);
 
   Expr *CalleeExpr = CE.getCalleeExpr(), *E = nullptr, *Base = nullptr;
-  MemberExpr *ME = dynamic_cast<MemberExpr *>(CalleeExpr);
+  MemberExpr *ME = static_cast<MemberExpr *>(CalleeExpr);
   std::string FunctionSignature;
   TypePtr const *ReturnTy = &Actions.getContext().BytesTypePtr;
   if (ME) {
@@ -564,7 +564,7 @@ void TypeResolver::visit(CallExprType &CE) {
     Base = ME->getBase();
     auto calculateFunctionSignature = [&]() {
       FunctionSignature = ME->getName()->getName().str() + "(";
-      auto FTy = dynamic_cast<FunctionType *>(ME->getType().get());
+      auto FTy = static_cast<FunctionType *>(ME->getType().get());
       auto &ParamTypes = FTy->getParamTypes();
       if (FTy->getReturnTypes().size() == 1) {
         ReturnTy = &FTy->getReturnTypes().at(0).get();
@@ -582,7 +582,7 @@ void TypeResolver::visit(CallExprType &CE) {
       }
       FunctionSignature += ")";
     };
-    if (auto CT = dynamic_cast<const ContractType *>(Base->getType().get());
+    if (auto CT = static_cast<const ContractType *>(Base->getType().get());
         CT && CT->getDecl()) {
       // A ContractType without Decl is solidity reserved word.
       calculateFunctionSignature();
@@ -605,25 +605,25 @@ void TypeResolver::visit(CallExprType &CE) {
   CE.resolveNamedCall();
 
   FunctionType *FTy = nullptr;
-  if (auto I = dynamic_cast<Identifier *>(E)) {
+  if (auto I = static_cast<Identifier *>(E)) {
     if (!I->isResolved()) {
       return;
     }
     if (I->isSpecialIdentifier()) {
       std::vector<std::reference_wrapper<const TypePtr>> ArgTypes;
       for (const auto &arg : CE.getArguments()) {
-        if (auto *IC = dynamic_cast<ImplicitCastExpr *>(arg)) {
+        if (auto *IC = static_cast<ImplicitCastExpr *>(arg)) {
           ArgTypes.emplace_back(std::cref(IC->getSubExpr()->getType()));
         }
       }
       switch (I->getSpecialIdentifier()) {
       case Identifier::SpecialIdentifier::abi_decode: {
         if (ME) {
-          if (auto I = dynamic_cast<Identifier *>(ME->getName())) {
+          if (auto I = static_cast<Identifier *>(ME->getName())) {
             I->setType(ArgTypes.at(1));
             ME->setType(ArgTypes.at(1));
             ReturnTy = &ArgTypes.at(1).get();
-            if (auto TP = dynamic_cast<TupleType *>(ReturnTy->get())) {
+            if (auto TP = static_cast<TupleType *>(ReturnTy->get())) {
               const auto &ElementTypes = TP->getElementTypes();
               if (ElementTypes.size() == 1)
                 ReturnTy = &ElementTypes.front();
@@ -644,7 +644,7 @@ void TypeResolver::visit(CallExprType &CE) {
             SourceRange(), false, ME->getLibraryAddress());
         auto LibraryAddress =
             Actions.CreateDummy(std::move(LibraryAddressLiteral));
-        if (auto *IC = dynamic_cast<ImplicitCastExpr *>(LibraryAddress.get())) {
+        if (auto *IC = static_cast<ImplicitCastExpr *>(LibraryAddress.get())) {
           Actions.resolveImplicitCast(
               *IC, Actions.getContext().AddressTypePayablePtr, false);
         }
@@ -670,7 +670,7 @@ void TypeResolver::visit(CallExprType &CE) {
        * abi.encodeWithSelector(bytes4(keccak256(bytes(signature))), ...) */
       case Identifier::SpecialIdentifier::abi_encodeWithSignature: {
         auto &Signature = CE.getRawArguments().at(0);
-        if (auto *IC = dynamic_cast<ImplicitCastExpr *>(Signature.get())) {
+        if (auto *IC = static_cast<ImplicitCastExpr *>(Signature.get())) {
           Actions.resolveImplicitCast(*IC, Actions.getContext().StringTypePtr,
                                       false);
         }
@@ -698,7 +698,7 @@ void TypeResolver::visit(CallExprType &CE) {
         ArgTypes.emplace_back(std::cref(Actions.getContext().BytesTypePtr));
         auto &RawArguments = CE.getRawArguments();
         auto &Selector = RawArguments.at(0);
-        if (auto *IC = dynamic_cast<ImplicitCastExpr *>(Selector.get())) {
+        if (auto *IC = static_cast<ImplicitCastExpr *>(Selector.get())) {
           Actions.resolveImplicitCast(*IC, ArgTypes.at(0), false);
         }
         Selector = Actions.CreateDummy(
@@ -717,7 +717,7 @@ void TypeResolver::visit(CallExprType &CE) {
         break;
       }
       default:
-        FTy = dynamic_cast<FunctionType *>(I->getType().get());
+        FTy = static_cast<FunctionType *>(I->getType().get());
       }
       switch (I->getSpecialIdentifier()) {
       case Identifier::SpecialIdentifier::external_call:
@@ -745,10 +745,10 @@ void TypeResolver::visit(CallExprType &CE) {
         I->setType(std::make_shared<FunctionType>(
             std::move(ArgTypes),
             std::vector<std::reference_wrapper<const TypePtr>>{*ReturnTy}));
-        FTy = dynamic_cast<FunctionType *>(I->getType().get());
+        FTy = static_cast<FunctionType *>(I->getType().get());
       }
     } else {
-      if (auto MI = dynamic_cast<Identifier *>(Base)) {
+      if (auto MI = static_cast<Identifier *>(Base)) {
         if (MI && MI->isSpecialIdentifier() &&
             MI->getSpecialIdentifier() !=
                 Identifier::SpecialIdentifier::this_ &&
@@ -760,11 +760,11 @@ void TypeResolver::visit(CallExprType &CE) {
         }
       }
       const Decl *D = I->getCorrespondDecl();
-      if (auto ED = dynamic_cast<const EventDecl *>(D)) {
-        FTy = dynamic_cast<FunctionType *>(ED->getType().get());
-      } else if (auto FD = dynamic_cast<const FunctionDecl *>(D)) {
-        FTy = dynamic_cast<FunctionType *>(FD->getType().get());
-      } else if (dynamic_cast<const CallableVarDecl *>(D)) {
+      if (auto ED = static_cast<const EventDecl *>(D)) {
+        FTy = static_cast<FunctionType *>(ED->getType().get());
+      } else if (auto FD = static_cast<const FunctionDecl *>(D)) {
+        FTy = static_cast<FunctionType *>(FD->getType().get());
+      } else if (static_cast<const CallableVarDecl *>(D)) {
         // TODO: implement
         assert(false && "calleevar not supported yet");
         __builtin_unreachable();
@@ -773,7 +773,7 @@ void TypeResolver::visit(CallExprType &CE) {
         __builtin_unreachable();
       }
     }
-  } else if (auto I = dynamic_cast<AsmIdentifier *>(E)) {
+  } else if (auto I = static_cast<AsmIdentifier *>(E)) {
     if (!I->isResolved()) {
       return;
     }
@@ -782,9 +782,9 @@ void TypeResolver::visit(CallExprType &CE) {
       case AsmIdentifier::SpecialIdentifier::linkersymbol: {
         auto &RawArguments = CE.getRawArguments();
         if (auto *IC =
-                dynamic_cast<ImplicitCastExpr *>(RawArguments.at(0).get())) {
+                static_cast<ImplicitCastExpr *>(RawArguments.at(0).get())) {
           auto Str = IC->getSubExpr();
-          if (auto SL = dynamic_cast<StringLiteral *>(Str)) {
+          if (auto SL = static_cast<StringLiteral *>(Str)) {
             auto Address =
                 Actions.getLibrariesAddressMap()->lookup(SL->getValue());
             RawArguments.at(0) =
@@ -796,11 +796,11 @@ void TypeResolver::visit(CallExprType &CE) {
       default:
         break;
       }
-      FTy = dynamic_cast<FunctionType *>(I->getType().get());
+      FTy = static_cast<FunctionType *>(I->getType().get());
     } else {
       const Decl *D = I->getCorrespondDecl();
-      if (auto AFD = dynamic_cast<const AsmFunctionDecl *>(D)) {
-        FTy = dynamic_cast<FunctionType *>(AFD->getType().get());
+      if (auto AFD = static_cast<const AsmFunctionDecl *>(D)) {
+        FTy = static_cast<FunctionType *>(AFD->getType().get());
       } else {
         assert(false && "callee is not AsmFunctionDecl");
         __builtin_unreachable();
@@ -818,7 +818,7 @@ void TypeResolver::visit(CallExprType &CE) {
   assert(Args.size() <= ArgTypes.size());
 
   for (size_t I = 0; I < Args.size(); ++I) {
-    if (auto *IC = dynamic_cast<ImplicitCastExpr *>(Args[I])) {
+    if (auto *IC = static_cast<ImplicitCastExpr *>(Args[I])) {
       Actions.resolveImplicitCast(*IC, ArgTypes[I], false);
     }
   }
@@ -844,8 +844,8 @@ void Sema::resolveImplicitCast(ImplicitCastExpr &IC, TypePtr DstTy,
   }
   if (SrcTy->getCategory() == Type::Category::ReturnTuple) {
     assert(DstTy->getCategory() == Type::Category::Tuple);
-    assert(dynamic_cast<CallExpr *>(IC.getSubExpr()));
-    auto SrcTupTy = dynamic_cast<const TupleType *>(SrcTy.get());
+    assert(static_cast<CallExpr *>(IC.getSubExpr()));
+    auto SrcTupTy = static_cast<const TupleType *>(SrcTy.get());
     std::vector<ExprPtr> Comps;
     std::vector<DirectValueExpr *> DirectValues;
     for (auto Ty : SrcTupTy->getElementTypes()) {
@@ -859,12 +859,12 @@ void Sema::resolveImplicitCast(ImplicitCastExpr &IC, TypePtr DstTy,
         std::move(TupleE), std::move(DirectValues), IC.moveSubExpr());
     std::vector<TypePtr> Types = SrcTupTy->getElementTypes();
     ReturnTupleE->setType(std::make_shared<TupleType>(std::move(Types)));
-    if (auto SrcTup = dynamic_cast<TupleExpr *>(ReturnTupleE->getTupleExpr())) {
-      auto DstTupTy = dynamic_cast<const TupleType *>(DstTy.get());
+    if (auto SrcTup = static_cast<TupleExpr *>(ReturnTupleE->getTupleExpr())) {
+      auto DstTupTy = static_cast<const TupleType *>(DstTy.get());
       std::size_t Num = SrcTup->getComponents().size();
       for (std::size_t Idx = 0; Idx < Num; ++Idx) {
         auto TIC =
-            dynamic_cast<ImplicitCastExpr *>(SrcTup->getComponents()[Idx]);
+            static_cast<ImplicitCastExpr *>(SrcTup->getComponents()[Idx]);
         if (TIC)
           resolveImplicitCast(*TIC, DstTupTy->getElementTypes()[Idx],
                               PrefereLValue);
@@ -876,18 +876,18 @@ void Sema::resolveImplicitCast(ImplicitCastExpr &IC, TypePtr DstTy,
   if (SrcTy->getCategory() == Type::Category::Tuple) {
     assert(DstTy->getCategory() == Type::Category::Tuple ||
            DstTy->getCategory() == Type::Category::ReturnTuple);
-    if (auto SrcTup = dynamic_cast<TupleExpr *>(IC.getSubExpr())) {
-      auto DstTupTy = dynamic_cast<const TupleType *>(DstTy.get());
+    if (auto SrcTup = static_cast<TupleExpr *>(IC.getSubExpr())) {
+      auto DstTupTy = static_cast<const TupleType *>(DstTy.get());
       std::size_t Num = SrcTup->getComponents().size();
       for (std::size_t Idx = 0; Idx < Num; ++Idx) {
         auto TIC =
-            dynamic_cast<ImplicitCastExpr *>(SrcTup->getComponents()[Idx]);
+            static_cast<ImplicitCastExpr *>(SrcTup->getComponents()[Idx]);
         if (TIC)
           resolveImplicitCast(*TIC, DstTupTy->getElementTypes()[Idx],
                               PrefereLValue);
       }
     } else {
-      assert(dynamic_cast<TypesTupleExpr *>(IC.getSubExpr()));
+      assert(static_cast<TypesTupleExpr *>(IC.getSubExpr()));
       // do nothing for TypesTupleExpr.
     }
   }

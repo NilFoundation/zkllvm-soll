@@ -30,15 +30,15 @@ public:
   // void visit(BinaryOperatorType &) override;
   void visit(CallExprType &CE) override {
     StmtVisitor::visit(CE);
-    if (auto *I = dynamic_cast<AsmIdentifier *>(CE.getCalleeExpr())) {
+    if (auto *I = static_cast<AsmIdentifier *>(CE.getCalleeExpr())) {
       auto Arguments = CE.getArguments();
       if (I->isSpecialIdentifier() &&
           I->getSpecialIdentifier() ==
               AsmIdentifier::SpecialIdentifier::setimmutable) {
-        auto *ICE0 = dynamic_cast<const ImplicitCastExpr *>(Arguments[0]);
-        auto *ICE1 = dynamic_cast<const ImplicitCastExpr *>(Arguments[1]);
+        auto *ICE0 = static_cast<const ImplicitCastExpr *>(Arguments[0]);
+        auto *ICE1 = static_cast<const ImplicitCastExpr *>(Arguments[1]);
         if (ICE0 && ICE1) {
-          auto *SL = dynamic_cast<const StringLiteral *>(ICE1->getSubExpr());
+          auto *SL = static_cast<const StringLiteral *>(ICE1->getSubExpr());
           if (SL) {
             std::string Name = SL->getValue();
             auto &ImmutableMap = Actions.getContext().getImmutableAddressMap();

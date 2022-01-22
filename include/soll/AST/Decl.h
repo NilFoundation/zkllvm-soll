@@ -30,7 +30,7 @@ protected:
 
 protected:
   Decl(SourceRange L,
-       llvm::StringRef Name = llvm::StringRef::withNullAsEmpty(nullptr),
+       llvm::StringRef Name = "",
        Visibility vis = Visibility::Default)
       : Location(L), Name(Name.str()), Vis(vis), UniqueName(Name.str()) {}
 
@@ -68,12 +68,12 @@ public:
 };
 
 class IdentifierPath {
-  std::vector<std::string> Path;
+  std::vector<llvm::StringRef> Path;
 
 public:
-  IdentifierPath(std::vector<std::string> &&P) : Path(std::move(P)) {}
-  std::vector<std::string> &getPath() { return Path; }
-  const std::vector<std::string> &getPath() const { return Path; }
+  IdentifierPath(std::vector<llvm::StringRef> &&P) : Path(std::move(P)) {}
+  std::vector<llvm::StringRef> &getPath() { return Path; }
+  const std::vector<llvm::StringRef> &getPath() const { return Path; }
 };
 
 class ContractDecl;

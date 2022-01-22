@@ -133,11 +133,11 @@ std::string ToString(soll::TypePtr type) {
     return "bool";
   case soll::Type::Category::Array: {
     auto at = static_cast<const soll::ArrayType *>(type.get());
-    return llvm::Twine(ToString(at->getElementType()) + "[" +
-                       (at->isDynamicSized()
-                            ? ""
-                            : at->getLength().toString(10, false)) +
-                       "]")
+    llvm::SmallVector<char> Str;
+    at->getLength().toString(Str, 10, false);
+    return llvm::Twine(
+               ToString(at->getElementType()) + "[" +
+               (at->isDynamicSized() ? llvm::SmallVector<char>() : Str) + "]")
         .str();
   }
   case soll::Type::Category::Tuple: {
@@ -493,9 +493,10 @@ void ASTPrinter::visit(StringLiteralType &literal) {
 
 void ASTPrinter::visit(NumberLiteralType &literal) {
   const bool Signed =
-      dynamic_cast<IntegerType *>(literal.getType().get())->isSigned();
-  os() << indent() << "NumberLiteral "
-       << literal.getValue().toString(10, Signed) << "\n";
+      static_cast<IntegerType *>(literal.getType().get())->isSigned();
+  llvm::SmallVector<char> Str;
+  literal.getValue().toString(Str, 10, Signed);
+  os() << indent() << "NumberLiteral " << Str << "\n";
   ConstStmtVisitor::visit(literal);
   unindent();
 }

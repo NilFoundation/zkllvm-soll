@@ -66,9 +66,8 @@ Require SOLL_INCLUDE_TESTS."
   OFF)
 
 option(SOLL_ENABLE_EVM
-  "Enable EVM backend for the SOLL. \
-This feature depends on EVM_LLVM project."
-  ${SOLL_ENABLE_EVM})
+  "Enable EVM backend for the SOLL."
+  TRUE)
 
 if(SOLL_COVERAGE)
 include(CodeCoverage)

@@ -53,7 +53,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
     CI.createASTContext();
 
-    std::string PresumedInputFile = getCurrentFileOrBufferName();
+    llvm::StringRef PresumedInputFile = getCurrentFileOrBufferName();
 
     std::unique_ptr<ASTConsumer> Consumer =
         CreateASTConsumer(CI, PresumedInputFile);

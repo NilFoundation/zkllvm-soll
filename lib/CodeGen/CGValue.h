@@ -443,7 +443,7 @@ public:
   }
 
   static ExprValuePtr getRValue(const Expr *E, std::vector<llvm::Value *> VT) {
-    auto TupleTy = dynamic_cast<const TupleType *>(E->getType().get());
+    auto TupleTy = static_cast<const TupleType *>(E->getType().get());
     assert(TupleTy && E->getType()->getCategory() == Type::Category::Tuple);
     return getRValue(TupleTy, VT);
   }

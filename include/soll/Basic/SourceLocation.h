@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #pragma once
 #include <cstdint>
+#include <llvm/ADT/DenseMapInfo.h>
 #include <llvm/Support/PointerLikeTypeTraits.h>
 #include <llvm/Support/raw_ostream.h>
 
@@ -250,8 +251,6 @@ public:
 } // namespace soll
 
 namespace llvm {
-
-template <typename T> struct DenseMapInfo;
 
 template <> struct DenseMapInfo<soll::FileID> {
   static soll::FileID getEmptyKey() { return {}; }

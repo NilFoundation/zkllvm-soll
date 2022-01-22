@@ -2,58 +2,58 @@
 
 namespace soll::CodeGen {
 ExprValuePtr ExprEmitter::visit(const Expr *E) {
-  if (auto UO = dynamic_cast<const UnaryOperator *>(E)) {
+  if (const auto *UO = static_cast<const UnaryOperator *>(E)) {
     return visit(UO);
   }
-  if (auto BO = dynamic_cast<const BinaryOperator *>(E)) {
+  if (const auto *BO = static_cast<const BinaryOperator *>(E)) {
     return visit(BO);
   }
-  if (auto CE = dynamic_cast<const CallExpr *>(E)) {
+  if (const auto *CE = static_cast<const CallExpr *>(E)) {
     return visit(CE);
   }
-  if (auto CE = dynamic_cast<const CastExpr *>(E)) {
+  if (const auto *CE = static_cast<const CastExpr *>(E)) {
     return visit(CE);
   }
-  if (auto NE = dynamic_cast<const NewExpr *>(E)) {
+  if (const auto *NE = static_cast<const NewExpr *>(E)) {
     return visit(NE);
   }
-  if (auto ME = dynamic_cast<const MemberExpr *>(E)) {
+  if (const auto *ME = static_cast<const MemberExpr *>(E)) {
     return visit(ME);
   }
-  if (auto IA = dynamic_cast<const IndexAccess *>(E)) {
+  if (const auto *IA = static_cast<const IndexAccess *>(E)) {
     return visit(IA);
   }
-  if (auto PE = dynamic_cast<const ParenExpr *>(E)) {
+  if (const auto *PE = static_cast<const ParenExpr *>(E)) {
     return visit(PE);
   }
-  if (auto CE = dynamic_cast<const ConstantExpr *>(E)) {
+  if (const auto *CE = static_cast<const ConstantExpr *>(E)) {
     return visit(CE);
   }
-  if (auto TE = dynamic_cast<const TupleExpr *>(E)) {
+  if (const auto *TE = static_cast<const TupleExpr *>(E)) {
     return visit(TE);
   }
-  if (auto DVE = dynamic_cast<const DirectValueExpr *>(E)) {
+  if (const auto *DVE = static_cast<const DirectValueExpr *>(E)) {
     return visit(DVE);
   }
-  if (auto RTE = dynamic_cast<const ReturnTupleExpr *>(E)) {
+  if (const auto *RTE = static_cast<const ReturnTupleExpr *>(E)) {
     return visit(RTE);
   }
-  if (auto I = dynamic_cast<const Identifier *>(E)) {
+  if (const auto *I = static_cast<const Identifier *>(E)) {
     return visit(I);
   }
-  if (auto ETNE = dynamic_cast<const ElementaryTypeNameExpr *>(E)) {
+  if (const auto *ETNE = static_cast<const ElementaryTypeNameExpr *>(E)) {
     return visit(ETNE);
   }
-  if (auto BL = dynamic_cast<const BooleanLiteral *>(E)) {
+  if (const auto *BL = static_cast<const BooleanLiteral *>(E)) {
     return visit(BL);
   }
-  if (auto SL = dynamic_cast<const StringLiteral *>(E)) {
+  if (const auto *SL = static_cast<const StringLiteral *>(E)) {
     return visit(SL);
   }
-  if (auto NL = dynamic_cast<const NumberLiteral *>(E)) {
+  if (const auto *NL = static_cast<const NumberLiteral *>(E)) {
     return visit(NL);
   }
-  if (auto AI = dynamic_cast<const AsmIdentifier *>(E)) {
+  if (const auto *AI = static_cast<const AsmIdentifier *>(E)) {
     return visit(AI);
   }
   assert(false && "unknown Expr!");
@@ -66,7 +66,8 @@ ExprValuePtr ExprEmitter::structIndexAccess(const ExprValuePtr StructValue,
   auto ET = STy->getElementTypes()[ElementIndex];
   switch (StructValue->getValueKind()) {
   case ValueKind::VK_SValue: {
-    llvm::Value *Base = Builder.CreateLoad(StructValue->getValue());
+    llvm::Value *Base =
+        Builder.CreateLoad(STy->getLLVMType(), StructValue->getValue());
     llvm::Value *Pos = Builder.getIntN(256, STy->getStoragePos(ElementIndex));
     llvm::Value *ElemAddress = Builder.CreateAdd(Base, Pos);
     llvm::Value *Address = Builder.CreateAlloca(CGF.Int256Ty);
@@ -80,7 +81,8 @@ ExprValuePtr ExprEmitter::structIndexAccess(const ExprValuePtr StructValue,
     Indices[0] = llvm::ConstantInt::get(VMContext, llvm::APInt(32, 0, true));
     Indices[1] =
         llvm::ConstantInt::get(VMContext, llvm::APInt(32, ElementIndex, true));
-    llvm::Value *ElementPtr = Builder.CreateGEP(Base, Indices);
+    llvm::Value *ElementPtr =
+        Builder.CreateGEP(STy->getLLVMType(), Base, Indices);
     return std::make_shared<ExprValue>(ET.get(), ValueKind::VK_LValue,
                                        ElementPtr);
   }
@@ -114,7 +116,8 @@ ExprValuePtr ExprEmitter::arrayIndexAccess(const ExprValuePtr &Base,
     return std::make_shared<ExprValue>(Ty, ValueKind::VK_LValue, Address);
   }
 
-  llvm::Value *Pos = Builder.CreateLoad(Value);
+  llvm::Value *Pos =
+      Builder.CreateLoad(CGF.getCodeGenModule().getLLVMType(ArrTy), Value);
   if (ArrTy->isDynamicSized()) {
     // load array size and check
     auto LengthTy = IntegerType::getIntN(256);
@@ -213,11 +216,11 @@ ExprValuePtr ExprEmitter::visit(const UnaryOperator *UO) {
 }
 
 bool ExprEmitter::isSigned(const Type *Ty) {
-  if (auto TyNow = dynamic_cast<const IntegerType *>(Ty))
+  if (auto TyNow = static_cast<const IntegerType *>(Ty))
     return TyNow->isSigned();
-  else if (dynamic_cast<const BooleanType *>(Ty))
+  else if (static_cast<const BooleanType *>(Ty))
     return false;
-  else if (dynamic_cast<const AddressType *>(Ty))
+  else if (static_cast<const AddressType *>(Ty))
     return false;
   else {
     assert(false && "Wrong type in binary operator!");
@@ -239,7 +242,7 @@ ExprValuePtr ExprEmitter::visit(const BinaryOperator *BO) {
     if (BO->getOpcode() == BO_Assign) {
       if (RHSVar->getType()->getCategory() == Type::Category::Struct &&
           LHSVar->getType() == RHSVar->getType()) {
-        auto StructTy = dynamic_cast<const StructType *>(RHSVar->getType());
+        auto StructTy = static_cast<const StructType *>(RHSVar->getType());
         for (size_t I = 0; I < StructTy->getElementSize(); ++I) {
           auto RHSVarI = structIndexAccess(RHSVar, I, StructTy);
           assert(RHSVarI->getType()->getCategory() != Type::Category::Struct &&
@@ -253,8 +256,8 @@ ExprValuePtr ExprEmitter::visit(const BinaryOperator *BO) {
         assert(LHSVar->isTuple());
         assert(RHSVar->isTuple());
 
-        ExprValueTuple *LHSVarT = dynamic_cast<ExprValueTuple *>(LHSVar.get());
-        ExprValueTuple *RHSVarT = dynamic_cast<ExprValueTuple *>(RHSVar.get());
+        ExprValueTuple *LHSVarT = static_cast<ExprValueTuple *>(LHSVar.get());
+        ExprValueTuple *RHSVarT = static_cast<ExprValueTuple *>(RHSVar.get());
 
         auto RHSVals = RHSVarT->load(Builder, CGM);
         LHSVarT->store(Builder, CGM, RHSVals);
@@ -504,7 +507,7 @@ ExprValuePtr ExprEmitter::visit(const CastExpr *CE) {
     __builtin_unreachable();
   case CastKind::LValueToRValue: {
     if (InVal->isTuple()) {
-      auto InValT = dynamic_cast<const ExprValueTuple *>(InVal.get());
+      auto InValT = static_cast<const ExprValueTuple *>(InVal.get());
       assert(InValT);
       auto Ins = InValT->load(Builder, CGM);
       return ExprValueTuple::getRValue(CE, Ins);
@@ -512,8 +515,8 @@ ExprValuePtr ExprEmitter::visit(const CastExpr *CE) {
     return ExprValue::getRValue(CE, In);
   }
   case CastKind::IntegralCast: {
-    auto OutTy = dynamic_cast<const IntegerType *>(OrigOutTy);
-    auto InTy = dynamic_cast<const IntegerType *>(OrigInTy);
+    auto OutTy = static_cast<const IntegerType *>(OrigOutTy);
+    auto InTy = static_cast<const IntegerType *>(OrigInTy);
     assert(InTy != nullptr && OutTy != nullptr &&
            "IntegralCast should have int");
     llvm::Type *OutLLVMTy = CGM.getLLVMType(OutTy);
@@ -526,8 +529,8 @@ ExprValuePtr ExprEmitter::visit(const CastExpr *CE) {
     return ExprValue::getRValue(CE, Out);
   }
   case CastKind::FixedBytesCast: {
-    auto OutTy = dynamic_cast<const FixedBytesType *>(OrigOutTy);
-    auto InTy = dynamic_cast<const FixedBytesType *>(OrigInTy);
+    auto OutTy = static_cast<const FixedBytesType *>(OrigOutTy);
+    auto InTy = static_cast<const FixedBytesType *>(OrigInTy);
     assert(InTy != nullptr && OutTy != nullptr &&
            "FixedBytesCast should have FixedBytes");
     llvm::Type *OutLLVMTy = CGM.getLLVMType(OutTy);
@@ -538,7 +541,7 @@ ExprValuePtr ExprEmitter::visit(const CastExpr *CE) {
   case CastKind::TypeCast: {
     if (OrigInTy->getCategory() == OrigOutTy->getCategory()) {
       if (OrigInTy->getCategory() == Type::Category::Tuple) {
-        auto InValT = dynamic_cast<const ExprValueTuple *>(InVal.get());
+        auto InValT = static_cast<const ExprValueTuple *>(InVal.get());
         assert(InValT);
         auto Ins = InValT->load(Builder, CGM);
         return ExprValueTuple::getRValue(CE, Ins);
@@ -547,10 +550,10 @@ ExprValuePtr ExprEmitter::visit(const CastExpr *CE) {
     }
     if (OrigInTy->getCategory() == Type::Category::Tuple &&
         OrigOutTy->getCategory() == Type::Category::ReturnTuple) {
-      auto InValT = dynamic_cast<const ExprValueTuple *>(InVal.get());
+      auto InValT = static_cast<const ExprValueTuple *>(InVal.get());
       assert(InValT);
       auto Ins = InValT->load(Builder, CGM);
-      auto RTy = dynamic_cast<const ReturnTupleType *>(OrigOutTy);
+      auto RTy = static_cast<const ReturnTupleType *>(OrigOutTy);
       llvm::Value *Out = llvm::ConstantAggregateZero::get(RTy->getLLVMType());
       unsigned Index = 0;
       for (auto Val : Ins) {
@@ -558,26 +561,26 @@ ExprValuePtr ExprEmitter::visit(const CastExpr *CE) {
       }
       return ExprValue::getRValue(CE, Out);
     }
-    if (dynamic_cast<const AddressType *>(OrigInTy) ||
-        dynamic_cast<const ContractType *>(OrigInTy) ||
-        dynamic_cast<const AddressType *>(OrigOutTy)) {
+    if (static_cast<const AddressType *>(OrigInTy) ||
+        static_cast<const ContractType *>(OrigInTy) ||
+        static_cast<const AddressType *>(OrigOutTy)) {
       return ExprValue::getRValue(
           CE, Builder.CreateZExtOrTrunc(
                   In, Builder.getIntNTy(OrigOutTy->getBitNum())));
     }
-    if (dynamic_cast<const BooleanType *>(OrigInTy)) {
+    if (static_cast<const BooleanType *>(OrigInTy)) {
       llvm::Value *Out = Builder.CreateZExt(In, CGM.getLLVMType(OrigOutTy));
       return ExprValue::getRValue(CE, Out);
     }
-    if (dynamic_cast<const BooleanType *>(OrigOutTy)) {
+    if (static_cast<const BooleanType *>(OrigOutTy)) {
       llvm::Value *Out = Builder.CreateICmpNE(
           In, llvm::ConstantInt::getNullValue(In->getType()));
       return ExprValue::getRValue(CE, Out);
     }
-    if ((dynamic_cast<const StringType *>(OrigInTy) &&
-         dynamic_cast<const BytesType *>(OrigOutTy)) ||
-        (dynamic_cast<const BytesType *>(OrigInTy) &&
-         dynamic_cast<const StringType *>(OrigOutTy))) {
+    if ((static_cast<const StringType *>(OrigInTy) &&
+         static_cast<const BytesType *>(OrigOutTy)) ||
+        (static_cast<const BytesType *>(OrigInTy) &&
+         static_cast<const StringType *>(OrigOutTy))) {
       llvm::Value *Out =
           llvm::ConstantAggregateZero::get(CGM.getLLVMType(OrigOutTy));
       Out = Builder.CreateInsertValue(Out, Builder.CreateExtractValue(In, {0}),
@@ -586,8 +589,8 @@ ExprValuePtr ExprEmitter::visit(const CastExpr *CE) {
                                       {1});
       return ExprValue::getRValue(CE, Out);
     }
-    if (dynamic_cast<const IntegerType *>(OrigOutTy) &&
-        dynamic_cast<const StringType *>(OrigInTy)) {
+    if (static_cast<const IntegerType *>(OrigOutTy) &&
+        static_cast<const StringType *>(OrigInTy)) {
       // XXX: it's should be allowed in assembly only
       llvm::Value *Dst = Builder.CreateAlloca(CGM.Int8Ty, Builder.getInt16(32));
       llvm::Value *Ptr = Builder.CreateBitCast(Dst, CGM.Int256PtrTy);
@@ -596,7 +599,7 @@ ExprValuePtr ExprEmitter::visit(const CastExpr *CE) {
       llvm::Value *Src = Builder.CreateExtractValue(In, {1});
       CGM.emitMemcpy(Dst, Src, Builder.CreateZExtOrTrunc(Length, CGM.Int32Ty));
       return ExprValue::getRValue(
-          CE, CGM.getEndianlessValue(Builder.CreateLoad(Ptr)));
+          CE, CGM.getEndianlessValue(Builder.CreateLoad(Ptr->getType(), Ptr)));
     }
     assert(false);
     break;
@@ -634,8 +637,7 @@ ExprValuePtr ExprEmitter::visit(const ReturnTupleExpr *RTE) {
   auto Callee = visit(RTE->getCalleeExpr());
   auto &DirectValues = RTE->getDirectValues();
   if (Callee->isTuple()) {
-    auto Vals =
-        dynamic_cast<ExprValueTuple *>(Callee.get())->load(Builder, CGM);
+    auto Vals = static_cast<ExprValueTuple *>(Callee.get())->load(Builder, CGM);
     assert(Vals.size() == DirectValues.size());
     for (unsigned I = 0; I < DirectValues.size(); ++I)
       DirectValues[I]->setValue(Vals[I]);
@@ -665,7 +667,7 @@ ExprValuePtr ExprEmitter::visit(const Identifier *ID) {
   }
   const Decl *D = ID->getCorrespondDecl();
 
-  if (auto *VD = dynamic_cast<const VarDecl *>(D)) {
+  if (auto *VD = static_cast<const VarDecl *>(D)) {
     const Type *Ty = VD->getType().get();
     if (VD->isStateVariable()) {
       return std::make_shared<ExprValue>(Ty, ValueKind::VK_SValue,
@@ -709,7 +711,7 @@ ExprValuePtr ExprEmitter::visit(const IndexAccess *IA) {
   ExprValuePtr Index = visit(IA->getIndex());
   const Type *Ty = IA->getType().get();
 
-  if (const auto *MType = dynamic_cast<const MappingType *>(Base->getType())) {
+  if (const auto *MType = static_cast<const MappingType *>(Base->getType())) {
     llvm::Value *Pos =
         CGM.getEndianlessValue(Builder.CreateLoad(Base->getValue()));
     llvm::Value *Key;
@@ -724,7 +726,7 @@ ExprValuePtr ExprEmitter::visit(const IndexAccess *IA) {
     Builder.CreateStore(CGM.emitKeccak256(Bytes), AddressPtr);
     return std::make_shared<ExprValue>(Ty, ValueKind::VK_SValue, AddressPtr);
   }
-  if (const auto *ArrTy = dynamic_cast<const ArrayType *>(Base->getType())) {
+  if (const auto *ArrTy = static_cast<const ArrayType *>(Base->getType())) {
     return arrayIndexAccess(Base, Index->load(Builder, CGM),
                             ArrTy->getElementType().get(), ArrTy,
                             IA->isStateVariable());
@@ -760,7 +762,7 @@ ExprValuePtr ExprEmitter::visit(const MemberExpr *ME) {
       llvm::Value *ValPtr = Builder.CreateAlloca(Builder.getInt32Ty());
       CGM.emitCallDataCopy(Builder.CreateBitCast(ValPtr, CGF.Int8PtrTy),
                            Builder.getInt32(0), Builder.getInt32(4));
-      llvm::Value *Val = Builder.CreateLoad(ValPtr);
+      llvm::Value *Val = Builder.CreateLoad(CGF.Int256Ty, ValPtr);
       return ExprValue::getRValue(ME, Val);
     }
     case Identifier::SpecialIdentifier::tx_gasprice: {
@@ -805,7 +807,7 @@ ExprValuePtr ExprEmitter::visit(const MemberExpr *ME) {
     }
   } else {
     ExprValuePtr StructValue = visit(ME->getBase());
-    auto ST = dynamic_cast<const StructType *>(ME->getBase()->getType().get());
+    auto ST = static_cast<const StructType *>(ME->getBase()->getType().get());
 
     assert(ST && "StructType is expected here.");
     assert(ST->hasElement(ME->getName()->getName().str()));
@@ -841,7 +843,7 @@ ExprValuePtr ExprEmitter::visit(const NumberLiteral *NL) {
 ExprValuePtr ExprEmitter::visit(const AsmIdentifier *YI) {
   const Decl *D = YI->getCorrespondDecl();
 
-  if (auto *VD = dynamic_cast<const AsmVarDecl *>(D)) {
+  if (auto *VD = static_cast<const AsmVarDecl *>(D)) {
     return std::make_shared<ExprValue>(
         VD->getType().get(), ValueKind::VK_LValue, CGF.getAddrOfLocalVar(VD));
   }
@@ -849,7 +851,7 @@ ExprValuePtr ExprEmitter::visit(const AsmIdentifier *YI) {
 }
 
 const Identifier *ExprEmitter::resolveIdentifier(const Expr *E) {
-  if (auto Id = dynamic_cast<const Identifier *>(E)) {
+  if (auto Id = static_cast<const Identifier *>(E)) {
     return Id;
   }
   return nullptr;

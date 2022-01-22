@@ -66,8 +66,8 @@ public:
     if (Diags.hasErrorOccurred()) {
       return;
     }
-    if (dynamic_cast<PragmaDirective *>(D)) {
-    } else if (auto *CD = dynamic_cast<ContractDecl *>(D)) {
+    if (static_cast<PragmaDirective *>(D)) {
+    } else if (auto *CD = static_cast<ContractDecl *>(D)) {
       if (CD->getKind() == ContractDecl::ContractKind::Interface) {
         Diags.Report(diag::err_can_not_emit_interface);
         return;
@@ -77,7 +77,7 @@ public:
         return;
       }
       Builder->emitContractDecl(CD);
-    } else if (auto *YO = dynamic_cast<YulObject *>(D)) {
+    } else if (auto *YO = static_cast<YulObject *>(D)) {
       Builder->emitYulObject(YO);
     } else {
       assert(false && "invalid top level decl");

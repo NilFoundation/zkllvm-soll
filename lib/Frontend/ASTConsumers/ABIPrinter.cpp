@@ -112,7 +112,7 @@ void ABIPrinter::visit(ContractDeclType &CD) {
     auto inputs = json::array();
     auto anonymous = event->isAnonymous();
     for (auto param : event->getParams()->getParams()) {
-      if (auto VD = dynamic_cast<const VarDecl *>(param)) {
+      if (auto VD = static_cast<const VarDecl *>(param)) {
         inputs.push_back({{"name", VD->getName()},
                           {"type", VD->getType()->getName()},
                           {"indexed", VD->isIndexed()}});

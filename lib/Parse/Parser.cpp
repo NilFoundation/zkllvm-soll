@@ -717,7 +717,7 @@ Parser::parseFunctionHeader(bool ForceEmptyName, bool AllowModifiers) {
     if (AllowModifiers && Tok.is(tok::identifier)) {
       Diag(diag::err_unimplemented_token) << tok::identifier;
 
-      std::string ModifierName = Tok.getIdentifierInfo()->getName();
+      llvm::StringRef ModifierName = Tok.getIdentifierInfo()->getName();
       ConsumeToken(); // identifier
 
       std::vector<ExprPtr> Arguments;
@@ -963,7 +963,7 @@ Parser::parseVariableDeclaration(VarDeclParserOptions const &Options,
 
 std::unique_ptr<EventDecl> Parser::parseEventDefinition() {
   const SourceLocation Begin = Tok.getLocation();
-  const std::string Name = Tok.getIdentifierInfo()->getName();
+  llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
   ConsumeToken(); // identifier
   VarDeclParserOptions Options;
   Options.AllowIndexed = true;
@@ -989,7 +989,7 @@ void Parser::parseUserDefinedTypeName() {
 std::unique_ptr<IdentifierPath>
 Parser::parseIdentifierPath(tok::TokenKind SplitTok) {
   assert(Tok.isAnyIdentifier());
-  std::vector<std::string> path{Tok.getIdentifierInfo()->getName()};
+  std::vector<llvm::StringRef> path{Tok.getIdentifierInfo()->getName()};
   ConsumeToken(); // identifier
 
   while (Tok.is(SplitTok)) {
@@ -1610,7 +1610,7 @@ Parser::typeNameFromIndexAccessStructure(Parser::IndexAccessedPath &Iap) {
   }
   for (auto &Length : Iap.Indices) {
     if (const auto *NL =
-            dynamic_cast<const NumberLiteral *>(Length.first.get())) {
+            static_cast<const NumberLiteral *>(Length.first.get())) {
       T = std::make_shared<ArrayType>(std::move(T), NL->getValue(),
                                       parseDataLocation());
     } else {
@@ -1790,7 +1790,7 @@ std::unique_ptr<Expr> Parser::parseLeftHandSideExpression(
     case tok::l_paren: {
       ConsumeParen(); // '('
       bool IsAbiDecode = false;
-      if (auto ME = dynamic_cast<MemberExpr *>(Expression.get())) {
+      if (auto ME = static_cast<MemberExpr *>(Expression.get())) {
         auto Name = ME->getName();
         IsAbiDecode = Name->isSpecialIdentifier() &&
                       Name->getSpecialIdentifier() ==

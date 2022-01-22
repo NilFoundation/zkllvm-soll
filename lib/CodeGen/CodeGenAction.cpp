@@ -5,7 +5,6 @@
 #include "soll/CodeGen/ModuleBuilder.h"
 #include "soll/Frontend/CompilerInstance.h"
 #include "llvm/Support/Alignment.h"
-#include <lld/Common/Driver.h>
 #include <llvm/IR/ConstantFolder.h>
 #include <llvm/IR/DiagnosticInfo.h>
 #include <llvm/IR/IRBuilder.h>
@@ -251,7 +250,7 @@ public:
     for (const auto &E : Gen->getEntry()) {
       auto Module = ClonedModuleMap.at(E.second);
       std::string OutName = "";
-      if (auto *CD = dynamic_cast<const ContractDecl *>(E.second)) {
+      if (auto *CD = static_cast<const ContractDecl *>(E.second)) {
         OutName = CD->getName();
       }
       emitEntry(*Module, E.first);

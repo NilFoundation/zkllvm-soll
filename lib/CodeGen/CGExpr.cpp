@@ -262,14 +262,14 @@ ExprValuePtr CodeGenFunction::emitCallAddressCall(const CallExpr *CE,
 ExprValuePtr CodeGenFunction::emitLibraryCall(const CallExpr *CE,
                                               const MemberExpr *ME) {
   auto VarT =
-      dynamic_cast<ExprValueTuple *>(emitCallAddressDelegatecall(CE, ME).get());
+      static_cast<ExprValueTuple *>(emitCallAddressDelegatecall(CE, ME).get());
   auto Bytes = VarT->getValues().at(1);
   return emitAbiDecode(Bytes->load(Builder, CGM), CE->getType().get());
 }
 
 ExprValuePtr CodeGenFunction::emitExternalCall(const CallExpr *CE,
                                                const MemberExpr *ME) {
-  auto VarT = dynamic_cast<ExprValueTuple *>(emitCallAddressCall(CE, ME).get());
+  auto VarT = static_cast<ExprValueTuple *>(emitCallAddressCall(CE, ME).get());
   auto Bytes = VarT->getValues().at(1);
   return emitAbiDecode(Bytes->load(Builder, CGM), CE->getType().get());
 }
@@ -326,7 +326,7 @@ llvm::Value *CodeGenFunction::emitAbiEncodePacked(const CallExpr *CE) {
   auto Arguments = CE->getArguments();
   std::vector<std::pair<ExprValuePtr, bool>> Args;
   for (auto Arg : Arguments) {
-    if (auto CastExprPtr = dynamic_cast<const CastExpr *>(Arg))
+    if (auto CastExprPtr = static_cast<const CastExpr *>(Arg))
       Arg = CastExprPtr->getSubExpr();
     bool IsStateVariable = Arg->isStateVariable(); // for array index access
     Args.emplace_back(emitExpr(Arg), IsStateVariable);
@@ -349,7 +349,7 @@ llvm::Value *CodeGenFunction::emitAbiEncode(const CallExpr *CE) {
   auto Arguments = CE->getArguments();
   std::vector<std::pair<ExprValuePtr, bool>> Args;
   for (auto Arg : Arguments) {
-    if (auto CastExprPtr = dynamic_cast<const CastExpr *>(Arg))
+    if (auto CastExprPtr = static_cast<const CastExpr *>(Arg))
       Arg = CastExprPtr->getSubExpr();
     bool IsStateVariable = Arg->isStateVariable(); // for array index access
     Args.emplace_back(emitExpr(Arg), IsStateVariable);
@@ -371,7 +371,7 @@ ExprValuePtr CodeGenFunction::emitAbiDecode(const CallExpr *CE) {
   auto Arguments = CE->getArguments();
   assert(Arguments.size() == 2);
   auto Arg = Arguments.at(0);
-  if (auto CastExprPtr = dynamic_cast<const CastExpr *>(Arg))
+  if (auto CastExprPtr = static_cast<const CastExpr *>(Arg))
     Arg = CastExprPtr->getSubExpr();
   auto BytesExprValue = emitExpr(Arg);
   auto Bytes = BytesExprValue->load(Builder, CGM);
@@ -387,7 +387,7 @@ ExprValuePtr CodeGenFunction::emitAbiDecode(llvm::Value *Bytes,
 
   AbiEmitter Emitter(*this);
   auto ReturnValue = Emitter.getDecode(SrcBytes, TupleTy).first;
-  if (auto TP = dynamic_cast<ExprValueTuple *>(ReturnValue.get())) {
+  if (auto TP = static_cast<ExprValueTuple *>(ReturnValue.get())) {
     const auto &Values = TP->getValues();
     if (Values.size() == 1)
       ReturnValue = Values.front();
@@ -397,18 +397,18 @@ ExprValuePtr CodeGenFunction::emitAbiDecode(llvm::Value *Bytes,
 
 ExprValuePtr CodeGenFunction::emitCallExpr(const CallExpr *CE) {
   auto Expr = CE->getCalleeExpr();
-  auto ME = dynamic_cast<const MemberExpr *>(Expr);
+  auto ME = static_cast<const MemberExpr *>(Expr);
   if (ME) {
     Expr = ME->getName();
   }
   const Decl *D = nullptr;
-  if (auto *Callee = dynamic_cast<const Identifier *>(Expr)) {
+  if (auto *Callee = static_cast<const Identifier *>(Expr)) {
     if (Callee->isSpecialIdentifier()) {
       return emitSpecialCallExpr(Callee, CE, ME);
     } else {
       D = Callee->getCorrespondDecl();
     }
-  } else if (auto *Callee = dynamic_cast<const AsmIdentifier *>(Expr)) {
+  } else if (auto *Callee = static_cast<const AsmIdentifier *>(Expr)) {
     if (Callee->isSpecialIdentifier()) {
       return emitAsmSpecialCallExpr(Callee, CE);
     } else {
@@ -421,13 +421,13 @@ ExprValuePtr CodeGenFunction::emitCallExpr(const CallExpr *CE) {
   for (auto Argument : CE->getArguments()) {
     Args.push_back(emitExpr(Argument)->load(Builder, CGM));
   }
-  if (auto FD = dynamic_cast<const FunctionDecl *>(D)) {
+  if (auto FD = static_cast<const FunctionDecl *>(D)) {
     llvm::Function *F = CGM.createOrGetLLVMFunction(FD);
     assert(F != nullptr && "undefined function");
     llvm::Value *Result = Builder.CreateCall(F, Args);
     return ExprValue::getRValue(CE, Result);
   }
-  if (auto ED = dynamic_cast<const EventDecl *>(D)) {
+  if (auto ED = static_cast<const EventDecl *>(D)) {
     auto Params = ED->getParams()->getParams();
     auto Arguments = CE->getArguments();
     std::vector<llvm::Value *> Data(
@@ -448,7 +448,7 @@ ExprValuePtr CodeGenFunction::emitCallExpr(const CallExpr *CE) {
       Builder.CreateStore(
           CGM.getEndianlessValue(Builder.CreateZExtOrTrunc(Args[I], Int256Ty)),
           ValPtr);
-      if (dynamic_cast<const VarDecl *>(Params[I])->isIndexed()) {
+      if (static_cast<const VarDecl *>(Params[I])->isIndexed()) {
         Topics.emplace_back(ValPtr);
       } else {
         Data[DataCnt++] = ValPtr;
@@ -457,7 +457,7 @@ ExprValuePtr CodeGenFunction::emitCallExpr(const CallExpr *CE) {
     CGM.emitLog(Data[0], Builder.getInt32(32), Topics);
     return std::make_shared<ExprValue>();
   }
-  if (auto AFD = dynamic_cast<const AsmFunctionDecl *>(D)) {
+  if (auto AFD = static_cast<const AsmFunctionDecl *>(D)) {
     llvm::Function *F = CGM.createOrGetLLVMFunction(AFD);
     assert(F != nullptr && "undefined function");
     llvm::Value *Result = Builder.CreateCall(F, Args);
@@ -471,14 +471,14 @@ llvm::Value *CodeGenFunction::emitStructConstructor(const CallExpr *CE) {
   auto Callee = CE->getCalleeExpr();
   TypePtr ReturnType;
   if (auto funTy =
-          dynamic_cast<const FunctionType *>(Callee->getType().get())) {
+          static_cast<const FunctionType *>(Callee->getType().get())) {
     ReturnType = funTy->getReturnTypes()[0];
   } else {
     assert(false && "Can not find struct constructor.");
     __builtin_unreachable();
   }
   const auto &Arguments = CE->getArguments();
-  auto ReturnStructType = dynamic_cast<const StructType *>(ReturnType.get());
+  auto ReturnStructType = static_cast<const StructType *>(ReturnType.get());
   llvm::Value *ReturnStruct =
       llvm::ConstantAggregateZero::get(ReturnStructType->getLLVMType());
   if (Arguments.size() != ReturnStructType->getElementSize()) {
@@ -559,8 +559,8 @@ ExprValuePtr CodeGenFunction::emitSpecialCallExpr(const Identifier *SI,
 
 llvm::Value *CodeGenFunction::emitAsmCallDataSize(const CallExpr *CE) {
   if (auto *ICE =
-          dynamic_cast<const ImplicitCastExpr *>(CE->getArguments()[0])) {
-    if (auto *SL = dynamic_cast<const StringLiteral *>(ICE->getSubExpr())) {
+          static_cast<const ImplicitCastExpr *>(CE->getArguments()[0])) {
+    if (auto *SL = static_cast<const StringLiteral *>(ICE->getSubExpr())) {
       std::string Name = SL->getValue();
       auto ObjectOrData = CGM.lookupYulDataOrYulObject(Name);
       return std::visit(
@@ -591,8 +591,8 @@ llvm::Value *CodeGenFunction::emitAsmCallDataSize(const CallExpr *CE) {
 
 llvm::Value *CodeGenFunction::emitAsmCallDataOffset(const CallExpr *CE) {
   if (auto *ICE =
-          dynamic_cast<const ImplicitCastExpr *>(CE->getArguments()[0])) {
-    if (auto *SL = dynamic_cast<const StringLiteral *>(ICE->getSubExpr())) {
+          static_cast<const ImplicitCastExpr *>(CE->getArguments()[0])) {
+    if (auto *SL = static_cast<const StringLiteral *>(ICE->getSubExpr())) {
       std::string Name = SL->getValue();
       auto ObjectOrData = CGM.lookupYulDataOrYulObject(Name);
       return std::visit(
@@ -1005,8 +1005,8 @@ llvm::Value *CodeGenFunction::emitAsmLinkersymbol(const CallExpr *CE) {
 void CodeGenFunction::emitAsmSetImmutable(const CallExpr *CE) {
   auto Arguments = CE->getArguments();
   llvm::Value *Value = emitExpr(Arguments[2])->load(Builder, CGM);
-  if (auto *ICE = dynamic_cast<const ImplicitCastExpr *>(Arguments[1])) {
-    if (auto *SL = dynamic_cast<const StringLiteral *>(ICE->getSubExpr())) {
+  if (auto *ICE = static_cast<const ImplicitCastExpr *>(Arguments[1])) {
+    if (auto *SL = static_cast<const StringLiteral *>(ICE->getSubExpr())) {
       std::string Name = SL->getValue();
       auto StringRefName = llvm::StringRef(Name);
       auto &Ctx = CGM.getContext();
@@ -1035,8 +1035,8 @@ void CodeGenFunction::emitAsmSetImmutable(const CallExpr *CE) {
 
 llvm::Value *CodeGenFunction::emitAsmLoadImmutable(const CallExpr *CE) {
   if (auto *ICE =
-          dynamic_cast<const ImplicitCastExpr *>(CE->getArguments()[0])) {
-    if (auto *SL = dynamic_cast<const StringLiteral *>(ICE->getSubExpr())) {
+          static_cast<const ImplicitCastExpr *>(CE->getArguments()[0])) {
+    if (auto *SL = static_cast<const StringLiteral *>(ICE->getSubExpr())) {
       std::string Name = SL->getValue();
       auto StringRefName = llvm::StringRef(Name);
       auto &Ctx = CGM.getContext();

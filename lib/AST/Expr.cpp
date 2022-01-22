@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#include <unordered_map>
+
 #include "soll/AST/Expr.h"
 #include "soll/AST/Decl.h"
 #include "soll/AST/Stmt.h"
@@ -6,7 +8,7 @@
 namespace soll {
 
 bool Identifier::isStateVariable() const {
-  if (auto *D = dynamic_cast<const VarDecl *>(getCorrespondDecl())) {
+  if (auto *D = static_cast<const VarDecl *>(getCorrespondDecl())) {
     return D->isStateVariable();
   }
   return false;
@@ -50,7 +52,7 @@ std::vector<const Expr *> TupleExpr::getComponents() const {
 void CallExpr::resolveNamedCall() {
   if (isNamedCall()) {
     std::vector<ExprPtr> Args;
-    auto FnTy = dynamic_cast<const FunctionType *>(CalleeExpr->getType().get());
+    auto FnTy = static_cast<const FunctionType *>(CalleeExpr->getType().get());
     std::unordered_map<std::string, size_t> ParamNamesIndex;
     size_t ParamSize = 0;
     for (const auto &ParamName : *FnTy->getParamNames()) {
@@ -68,7 +70,7 @@ void CallExpr::resolveNamedCall() {
 std::vector<Expr *> CallExpr::getArguments() {
   std::vector<Expr *> Args;
   if (isNamedCall()) {
-    auto FnTy = dynamic_cast<const FunctionType *>(CalleeExpr->getType().get());
+    auto FnTy = static_cast<const FunctionType *>(CalleeExpr->getType().get());
     std::unordered_map<std::string, size_t> ParamNamesIndex;
     size_t ParamSize = 0;
     for (const auto &ParamName : *FnTy->getParamNames()) {
@@ -88,7 +90,7 @@ std::vector<Expr *> CallExpr::getArguments() {
 std::vector<const Expr *> CallExpr::getArguments() const {
   std::vector<const Expr *> Args;
   if (isNamedCall()) {
-    auto FnTy = dynamic_cast<const FunctionType *>(CalleeExpr->getType().get());
+    auto FnTy = static_cast<const FunctionType *>(CalleeExpr->getType().get());
     std::unordered_map<std::string, size_t> ParamNamesIndex;
     size_t ParamSize = 0;
     for (const auto &ParamName : *FnTy->getParamNames()) {
@@ -141,13 +143,13 @@ const TypePtr &Identifier::getType() const {
   const Decl *D = getCorrespondDecl();
   if (!D)
     return Expr::getType();
-  if (auto VD = dynamic_cast<const VarDecl *>(D)) {
+  if (auto VD = static_cast<const VarDecl *>(D)) {
     return VD->getType();
-  } else if (auto FD = dynamic_cast<const FunctionDecl *>(D)) {
+  } else if (auto FD = static_cast<const FunctionDecl *>(D)) {
     return FD->getType();
-  } else if (auto CD = dynamic_cast<const ContractDecl *>(D)) {
+  } else if (auto CD = static_cast<const ContractDecl *>(D)) {
     return CD->getType();
-  } else if (dynamic_cast<const EventDecl *>(D)) {
+  } else if (static_cast<const EventDecl *>(D)) {
     return Expr::getType();
   } else {
     assert(false && "unknown decl");

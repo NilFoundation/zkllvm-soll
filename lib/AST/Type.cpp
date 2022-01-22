@@ -6,7 +6,7 @@ namespace soll {
 
 bool IntegerType::isImplicitlyConvertibleTo(Type const &_other) const {
   if (_other.getCategory() == Category::Integer) {
-    IntegerType const &ConvertTo = dynamic_cast<IntegerType const &>(_other);
+    IntegerType const &ConvertTo = static_cast<IntegerType const &>(_other);
     if (this->getBitNum() > ConvertTo.getBitNum())
       return false;
     else if (this->isSigned())
@@ -40,7 +40,7 @@ bool TupleType::isImplicitlyConvertibleTo(Type const &_other) const {
   if (_other.getCategory() != Category::Integer) {
     return false;
   }
-  TupleType const &convertTo = dynamic_cast<TupleType const &>(_other);
+  TupleType const &convertTo = static_cast<TupleType const &>(_other);
   bool result = true;
   std::size_t num = ElementTypes.size();
 
@@ -56,10 +56,10 @@ bool TupleType::isExplicitlyConvertibleTo(Type const &_convertTo) const {
 
 std::string StructType::getUniqueName() const {
   return D->getUniqueName().str();
-};
+}
 
 std::string ContractType::getUniqueName() const {
   return D->getUniqueName().str();
-};
+}
 
 } // namespace soll

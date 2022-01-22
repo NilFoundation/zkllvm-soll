@@ -508,7 +508,7 @@ public:
         Value(V) {}
   const llvm::APInt &getValue() const { return Value; }
   bool IsSigned() const {
-    auto *IntTy = dynamic_cast<IntegerType *>(getType().get());
+    auto *IntTy = static_cast<IntegerType *>(getType().get());
     assert(IntTy != nullptr && "NumberLiteral with non-IntegerType");
     return IntTy->isSigned();
   }

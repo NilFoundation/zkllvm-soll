@@ -49,7 +49,8 @@ llvm::Value *AbiEmitter::emitEncodeTuple(
     std::tie(Value, IsStateVariable) = Values[I];
     if (Value->getType()->isDynamic()) {
       DynamicPos.emplace_back(Int8Ptr, I);
-      Int8Ptr = Builder.CreateInBoundsGEP(Int8Ptr, {Builder.getIntN(32, 32)});
+      Int8Ptr = Builder.CreateInBoundsGEP(Int8Ptr->getType(), Int8Ptr,
+                                          {Builder.getIntN(32, 32)});
     } else {
       Int8Ptr = emitEncode(Int8Ptr, Value, IsStateVariable);
     }
@@ -105,18 +106,18 @@ AbiEmitter::getDecode(llvm::Value *Int8Ptr, const Type *Ty) {
   }
   case Type::Category::ReturnTuple:
   case Type::Category::Tuple: {
-    const auto *TupleTy = dynamic_cast<const TupleType *>(Ty);
+    const auto *TupleTy = static_cast<const TupleType *>(Ty);
     std::vector<llvm::Value *> Vals;
     llvm::Value *NextInt8Ptr;
     std::tie(Vals, NextInt8Ptr) = getDecodeTuple(Int8Ptr, TupleTy);
     return {ExprValueTuple::getRValue(TupleTy, Vals), NextInt8Ptr};
   }
   case Type::Category::Struct: {
-    const auto *TupleTy = dynamic_cast<const TupleType *>(Ty);
+    const auto *TupleTy = static_cast<const TupleType *>(Ty);
     std::vector<llvm::Value *> Vals;
     llvm::Value *NextInt8Ptr;
     std::tie(Vals, NextInt8Ptr) = getDecodeTuple(Int8Ptr, TupleTy);
-    const auto *StructTy = dynamic_cast<const StructType *>(Ty);
+    const auto *StructTy = static_cast<const StructType *>(Ty);
     llvm::Value *ReturnStruct =
         llvm::ConstantAggregateZero::get(StructTy->getLLVMType());
     unsigned Index = 0;
@@ -211,7 +212,7 @@ llvm::Value *AbiEmitter::getEncodePackedSize(const ExprValuePtr &Value,
     return Length;
   }
   case Type::Category::Array: {
-    const auto *ArrTy = dynamic_cast<const ArrayType *>(Ty);
+    const auto *ArrTy = static_cast<const ArrayType *>(Ty);
     const auto ArrElementTy = ArrTy->getElementType();
     llvm::Value *Size = Builder.getIntN(32, 0);
     llvm::Value *ArrayLength =
@@ -299,7 +300,7 @@ llvm::Value *AbiEmitter::getEncodeSize(const ExprValuePtr &Value,
         Builder.getIntN(32, 32));
   }
   case Type::Category::Array: {
-    const auto *ArrTy = dynamic_cast<const ArrayType *>(Ty);
+    const auto *ArrTy = static_cast<const ArrayType *>(Ty);
     const auto ArrElementTy = ArrTy->getElementType();
     llvm::Value *Size = Builder.getIntN(32, ArrTy->isDynamicSized() ? 32 : 0);
     llvm::Value *ArrayLength =
@@ -360,7 +361,7 @@ llvm::Value *AbiEmitter::getEncodeSize(const ExprValuePtr &Value,
     return PHISize;
   }
   case Type::Category::Struct: {
-    const auto *STy = dynamic_cast<const StructType *>(Ty);
+    const auto *STy = static_cast<const StructType *>(Ty);
     std::vector<std::pair<ExprValuePtr, bool>> Values;
     bool IsStateVariable = Value->getValueKind() == ValueKind::VK_SValue;
     unsigned ElementSize = STy->getElementSize();
@@ -407,7 +408,7 @@ llvm::Value *AbiEmitter::emitEncodePacked(llvm::Value *Int8Ptr,
     llvm::BasicBlock *EndRecursive =
         llvm::BasicBlock::Create(VMContext, "recursive_end", ThisFunc);
 
-    const auto *ArrTy = dynamic_cast<const ArrayType *>(Ty);
+    const auto *ArrTy = static_cast<const ArrayType *>(Ty);
     if (IsArrayElement && ArrTy->isDynamicSized()) {
       assert(false &&
              "This type is not available currently for abi.encodePacked");
@@ -460,7 +461,7 @@ llvm::Value *AbiEmitter::emitEncodePacked(llvm::Value *Int8Ptr,
     llvm::Value *Result = Value->load(Builder, CGM);
     Int8Ptr = copyToInt8Ptr(Int8Ptr, Result, true);
     if (IsArrayElement) {
-      const auto *FixedBytesTy = dynamic_cast<const FixedBytesType *>(Ty);
+      const auto *FixedBytesTy = static_cast<const FixedBytesType *>(Ty);
       unsigned PadRightLength = 32 - FixedBytesTy->getBitNum() / 8;
       if (PadRightLength % 32)
         Int8Ptr = Builder.CreateInBoundsGEP(
@@ -514,7 +515,7 @@ llvm::Value *AbiEmitter::emitEncode(llvm::Value *Int8Ptr,
     llvm::BasicBlock *EndRecursive =
         llvm::BasicBlock::Create(VMContext, "recursive_end", ThisFunc);
 
-    const auto *ArrTy = dynamic_cast<const ArrayType *>(Ty);
+    const auto *ArrTy = static_cast<const ArrayType *>(Ty);
     llvm::Value *ArrayLengthInt256 =
         Builder.CreateZExtOrTrunc(getArrayLength(Value, ArrTy), CGM.Int256Ty);
     llvm::Value *ArrayLength =
@@ -581,7 +582,7 @@ llvm::Value *AbiEmitter::emitEncode(llvm::Value *Int8Ptr,
     return PHITail;
   }
   case Type::Category::Struct: {
-    const auto *STy = dynamic_cast<const StructType *>(Ty);
+    const auto *STy = static_cast<const StructType *>(Ty);
     std::vector<std::pair<ExprValuePtr, bool>> Values;
     bool IsStateVariable = Value->getValueKind() == ValueKind::VK_SValue;
     unsigned ElementSize = STy->getElementSize();
@@ -602,7 +603,7 @@ llvm::Value *AbiEmitter::emitEncode(llvm::Value *Int8Ptr,
   case Type::Category::FixedBytes: {
     llvm::Value *Result = Value->load(Builder, CGM);
     Int8Ptr = copyToInt8Ptr(Int8Ptr, Result, true);
-    const auto *FixedBytesTy = dynamic_cast<const FixedBytesType *>(Ty);
+    const auto *FixedBytesTy = static_cast<const FixedBytesType *>(Ty);
     unsigned PadRightLength = 32 - FixedBytesTy->getBitNum() / 8;
     if (PadRightLength % 32)
       Int8Ptr = Builder.CreateInBoundsGEP(
