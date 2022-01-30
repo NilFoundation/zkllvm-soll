@@ -63,7 +63,7 @@ llvm::Value *AbiEmitter::emitEncodeTuple(
     bool IsStateVariable;
     std::tie(Value, IsStateVariable) = Values[I];
     llvm::Value *TailPos = Builder.CreateZExtOrTrunc(
-        Builder.CreatePtrDiff(Int8Ptr, Int8PtrBegin), CGM.Int256Ty);
+        Builder.CreatePtrDiff(CGM.Int8Ty, Int8Ptr, Int8PtrBegin), CGM.Int256Ty);
     copyToInt8Ptr(Head, TailPos, false);
     Int8Ptr = emitEncode(Int8Ptr, Value, IsStateVariable);
   }
@@ -556,7 +556,8 @@ llvm::Value *AbiEmitter::emitEncode(llvm::Value *Int8Ptr,
     llvm::Value *NextHead = nullptr;
     if (ArrTy->getElementType()->isDynamic()) {
       llvm::Value *TailPos = Builder.CreateZExtOrTrunc(
-          Builder.CreatePtrDiff(PHITail, Int8PtrBegin), CGM.Int256Ty);
+          Builder.CreatePtrDiff(CGM.Int8PtrTy, PHITail, Int8PtrBegin),
+          CGM.Int256Ty);
       NextHead = copyToInt8Ptr(PHIHead, TailPos, true);
     }
     llvm::Value *NextTail =
