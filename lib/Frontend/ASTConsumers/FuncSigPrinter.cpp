@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+#include <nil/crypto3/detail/static_digest.hpp>
+
 #include "soll/AST/AST.h"
 #include "soll/AST/ASTConsumer.h"
 #include "soll/Frontend/ASTConsumers.h"
@@ -18,6 +21,11 @@ std::string ToString(const std::vector<unsigned char> &v,
   return oss.str();
 }
 
+template <std::size_t DigestBits>
+std::string ToString(const nil::crypto3::static_digest<DigestBits> &v,
+                     unsigned int size = 4) {
+  return std::to_string(v);
+}
 } // namespace
 
 namespace soll {

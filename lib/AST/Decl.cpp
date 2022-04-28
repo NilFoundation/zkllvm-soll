@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+#include <nil/crypto3/hash/algorithm/hash.hpp>
+#include <nil/crypto3/hash/keccak.hpp>
+
 #include "soll/AST/Decl.h"
-#include "../utils/SHA-3/Keccak.h"
 #include "soll/AST/Type.h"
 
 namespace soll {
@@ -213,25 +216,31 @@ const FunctionDecl *ContractDecl::getFallback() const { return Fallback.get(); }
 ///
 /// CallableVarDecl
 ///
-std::vector<unsigned char> CallableVarDecl::getSignatureHash() const {
-  Keccak h(256);
-  h.addData(getName().bytes_begin(), 0, getName().size());
-  h.addData('(');
+nil::crypto3::static_digest<256> CallableVarDecl::getSignatureHash() const {
+  using namespace nil::crypto3;
+
+  accumulator_set<hashes::keccak_1600<256>> acc;
+  hash<hashes::keccak_1600<256>>(getName().bytes_begin(), getName().bytes_end(),
+                                 acc);
+  hash<hashes::keccak_1600<256>>({'('}, acc);
+
   bool First = true;
   for (const VarDeclBase *var : getParams()->getParams()) {
-    if (!First)
-      h.addData(',');
+    if (!First) {
+      hash<hashes::keccak_1600<256>>({','}, acc);
+    }
     First = false;
     assert(var->getType() && "unsupported type!");
     const std::string &name = var->getType()->getName();
-    h.addData(reinterpret_cast<const uint8_t *>(name.data()), 0, name.size());
+    hash<hashes::keccak_1600<256>>({'('}, acc);
+    hash<hashes::keccak_1600<256>>(name, acc);
   }
-  h.addData(')');
-  return h.digest();
+  hash<hashes::keccak_1600<256>>({')'}, acc);
+  return accumulators::extract::hash<hashes::keccak_1600<256>>(acc);
 }
 
 std::uint32_t CallableVarDecl::getSignatureHashUInt32() const {
-  const std::vector<unsigned char> &op = getSignatureHash();
+  const auto &op = getSignatureHash();
   return op[0] | (op[1] << 8u) | (op[2] << 16u) | (op[3] << 24u);
 }
 

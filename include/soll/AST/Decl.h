@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #pragma once
 
+#include <nil/crypto3/detail/static_digest.hpp>
+
 #include "soll/AST/ASTForward.h"
 #include "soll/AST/DeclVisitor.h"
 #include "soll/AST/Expr.h"
@@ -244,7 +246,7 @@ public:
     return Overrides.get();
   }
 
-  std::vector<unsigned char> getSignatureHash() const;
+  nil::crypto3::static_digest<256> getSignatureHash() const;
   std::uint32_t getSignatureHashUInt32() const;
 
   void accept(DeclVisitor &Visitor) override;

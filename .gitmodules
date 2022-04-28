@@ -2,3 +2,12 @@
 [submodule "utils/ewasm-testbench"]
 	path = utils/ewasm-testbench
 	url = ../soll-ewasm-testbench.git
+[submodule "utils/crypto/codec"]
+	path = utils/crypto/codec
+	url = git@github.com:nilfoundation/crypto3-codec.git
+[submodule "utils/crypto/block"]
+	path = utils/crypto/block
+	url = git@github.com:nilfoundation/crypto3-block.git
+[submodule "utils/crypto/hash"]
+	path = utils/crypto/hash
+	url = git@github.com:nilfoundation/crypto3-hash.git
