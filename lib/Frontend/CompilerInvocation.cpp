@@ -69,7 +69,7 @@ static cl::opt<bool> Runtime("runtime", cl::desc("Generate for runtime code"),
                              cl::cat(SollCategory));
 
 static cl::opt<TargetKind>
-    Target("target", cl::Optional, cl::ValueRequired, cl::init(EWASM),
+    Target("target", cl::Optional, cl::ValueRequired, cl::init(EVM),
            cl::values(clEnumVal(EWASM, "Generate LLVM IR for Ewasm backend")),
            cl::values(clEnumVal(EVM, "Generate LLVM IR for EVM backend")),
            cl::cat(SollCategory));
