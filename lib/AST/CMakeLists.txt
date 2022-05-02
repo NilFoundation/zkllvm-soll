@@ -14,8 +14,10 @@ add_llvm_library(sollAST
                  StmtVisitor.cpp
                  Type.cpp
 
+                 LINK_COMPONENTS
+                 Support
+
                  LINK_LIBS
-                 LLVMSupport
                  crypto3::block
                  crypto3::codec
                  crypto3::hash
