@@ -327,7 +327,7 @@ llvm::Value *CodeGenFunction::emitAbiEncodePacked(const CallExpr *CE) {
   auto Arguments = CE->getArguments();
   std::vector<std::pair<ExprValuePtr, bool>> Args;
   for (auto Arg : Arguments) {
-    if (auto CastExprPtr = static_cast<const CastExpr *>(Arg))
+    if (auto CastExprPtr = dynamic_cast<const CastExpr *>(Arg))
       Arg = CastExprPtr->getSubExpr();
     bool IsStateVariable = Arg->isStateVariable(); // for array index access
     Args.emplace_back(emitExpr(Arg), IsStateVariable);
@@ -350,7 +350,7 @@ llvm::Value *CodeGenFunction::emitAbiEncode(const CallExpr *CE) {
   auto Arguments = CE->getArguments();
   std::vector<std::pair<ExprValuePtr, bool>> Args;
   for (auto Arg : Arguments) {
-    if (auto CastExprPtr = static_cast<const CastExpr *>(Arg))
+    if (auto CastExprPtr = dynamic_cast<const CastExpr *>(Arg))
       Arg = CastExprPtr->getSubExpr();
     bool IsStateVariable = Arg->isStateVariable(); // for array index access
     Args.emplace_back(emitExpr(Arg), IsStateVariable);
@@ -372,7 +372,7 @@ ExprValuePtr CodeGenFunction::emitAbiDecode(const CallExpr *CE) {
   auto Arguments = CE->getArguments();
   assert(Arguments.size() == 2);
   auto Arg = Arguments.at(0);
-  if (auto CastExprPtr = static_cast<const CastExpr *>(Arg))
+  if (auto CastExprPtr = dynamic_cast<const CastExpr *>(Arg))
     Arg = CastExprPtr->getSubExpr();
   auto BytesExprValue = emitExpr(Arg);
   auto Bytes = BytesExprValue->load(Builder, CGM);
@@ -388,7 +388,7 @@ ExprValuePtr CodeGenFunction::emitAbiDecode(llvm::Value *Bytes,
 
   AbiEmitter Emitter(*this);
   auto ReturnValue = Emitter.getDecode(SrcBytes, TupleTy).first;
-  if (auto TP = static_cast<ExprValueTuple *>(ReturnValue.get())) {
+  if (auto TP = dynamic_cast<ExprValueTuple *>(ReturnValue.get())) {
     const auto &Values = TP->getValues();
     if (Values.size() == 1)
       ReturnValue = Values.front();
@@ -422,13 +422,13 @@ ExprValuePtr CodeGenFunction::emitCallExpr(const CallExpr *CE) {
   for (auto Argument : CE->getArguments()) {
     Args.push_back(emitExpr(Argument)->load(Builder, CGM));
   }
-  if (auto FD = static_cast<const FunctionDecl *>(D)) {
+  if (auto FD = dynamic_cast<const FunctionDecl *>(D)) {
     llvm::Function *F = CGM.createOrGetLLVMFunction(FD);
     assert(F != nullptr && "undefined function");
     llvm::Value *Result = Builder.CreateCall(F, Args);
     return ExprValue::getRValue(CE, Result);
   }
-  if (auto ED = static_cast<const EventDecl *>(D)) {
+  if (auto ED = dynamic_cast<const EventDecl *>(D)) {
     auto Params = ED->getParams()->getParams();
     auto Arguments = CE->getArguments();
     std::vector<llvm::Value *> Data(
@@ -458,7 +458,7 @@ ExprValuePtr CodeGenFunction::emitCallExpr(const CallExpr *CE) {
     CGM.emitLog(Data[0], Builder.getInt32(32), Topics);
     return std::make_shared<ExprValue>();
   }
-  if (auto AFD = static_cast<const AsmFunctionDecl *>(D)) {
+  if (auto AFD = dynamic_cast<const AsmFunctionDecl *>(D)) {
     llvm::Function *F = CGM.createOrGetLLVMFunction(AFD);
     assert(F != nullptr && "undefined function");
     llvm::Value *Result = Builder.CreateCall(F, Args);

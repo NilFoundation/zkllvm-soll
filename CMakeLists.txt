@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.11)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE RelWithDebInfo)
+    set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 #set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
@@ -19,27 +19,27 @@ set(SOLL_VERSION_MAJOR 0)
 set(SOLL_VERSION_MINOR 1)
 set(SOLL_VERSION_PATCH 1)
 set(SOLL_VERSION_STRING
-  "${SOLL_VERSION_MAJOR}.${SOLL_VERSION_MINOR}.${SOLL_VERSION_PATCH}"
-  )
+    "${SOLL_VERSION_MAJOR}.${SOLL_VERSION_MINOR}.${SOLL_VERSION_PATCH}"
+    )
 
 project(SOLL
-  VERSION ${SOLL_VERSION_MAJOR}.${SOLL_VERSION_MINOR}.${SOLL_VERSION_PATCH}
-  LANGUAGES CXX
-  )
+        VERSION ${SOLL_VERSION_MAJOR}.${SOLL_VERSION_MINOR}.${SOLL_VERSION_PATCH}
+        LANGUAGES CXX
+        )
 
 configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/soll/Config/Config.h.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/include/soll/Config/Config.h
-  )
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/soll/Config/Config.h.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/include/soll/Config/Config.h
+)
 
 find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_DIR}")
 list(APPEND CMAKE_MODULE_PATH ${LLVM_DIR})
 include(AddLLVM)
 
 include_directories(BEFORE
-  ${CMAKE_CURRENT_BINARY_DIR}/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-  )
+                    ${CMAKE_CURRENT_BINARY_DIR}/include
+                    ${CMAKE_CURRENT_SOURCE_DIR}/include
+                    )
 
 include_directories("${LLVM_BINARY_DIR}/include" "${LLVM_INCLUDE_DIR}")
 link_directories("${LLVM_LIBRARY_DIR}")
@@ -49,38 +49,38 @@ find_package(Threads REQUIRED)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
-if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-  add_compile_options(
-    -Wall
-    -Wextra
-    -Wno-unknown-warning-option
-    -Wno-init-list-lifetime
-    -Wno-unused-parameter
-    -Wno-unused-private-field
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(
+            -Wall
+            -Wextra
+            -Wno-unknown-warning-option
+            -Wno-init-list-lifetime
+            -Wno-unused-parameter
+            -Wno-unused-private-field
     )
 endif()
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  add_compile_options(
-    -Wno-redundant-move
-  )
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(
+            -Wno-redundant-move
+    )
 endif()
 
 option(SOLL_INCLUDE_TESTS
-  "Generate build targets for the Soll unit tests."
-  ${LLVM_INCLUDE_TESTS})
+       "Generate build targets for the Soll unit tests."
+       ${LLVM_INCLUDE_TESTS})
 option(SOLL_COVERAGE
-  "Generate coverage report. \
+       "Generate coverage report. \
 Require SOLL_INCLUDE_TESTS."
-  OFF)
+       OFF)
 
 option(SOLL_ENABLE_EVM
-  "Enable EVM backend for the SOLL."
-  TRUE)
+       "Enable EVM backend for the SOLL."
+       TRUE)
 
 if(SOLL_COVERAGE)
-include(CodeCoverage)
-append_coverage_compiler_flags()
+    include(CodeCoverage)
+    append_coverage_compiler_flags()
 endif()
 
 add_subdirectory(lib)
@@ -88,25 +88,25 @@ add_subdirectory(tools)
 add_subdirectory(utils)
 
 if(SOLL_INCLUDE_TESTS)
-  include(CTest)
-  include(Catch)
-  add_subdirectory(unittests)
-  add_subdirectory(test)
-  if(SOLL_RUNTIME_TESTS)
-    include(FetchContent)
+    include(CTest)
+    include(Catch)
+    add_subdirectory(unittests)
+    add_subdirectory(test)
+    if(SOLL_RUNTIME_TESTS)
+        include(FetchContent)
 
-    FetchContent_Declare(
-      ssvm-evmc
-      GIT_REPOSITORY https://github.com/second-state/ssvm-evmc.git
-      GIT_TAG evmc6-0.1.1
-    )
-      
-    FetchContent_GetProperties(ssvm-evmc)
-    if (NOT ssvm-evmc_POPULATED)
-      FetchContent_Populate(ssvm-evmc)
-    endif ()
-      
-    add_subdirectory(${ssvm-evmc_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/utils/ssvm-evmc)
-    set(SSVM_EVMC_SRC_DIR ${ssvm-evmc_SOURCE_DIR})
-  endif()
+        fetchcontent_declare(
+                ssvm-evmc
+                GIT_REPOSITORY https://github.com/second-state/ssvm-evmc.git
+                GIT_TAG evmc6-0.1.1
+        )
+
+        fetchcontent_getproperties(ssvm-evmc)
+        if(NOT ssvm-evmc_POPULATED)
+            fetchcontent_populate(ssvm-evmc)
+        endif()
+
+        add_subdirectory(${ssvm-evmc_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/utils/ssvm-evmc)
+        set(SSVM_EVMC_SRC_DIR ${ssvm-evmc_SOURCE_DIR})
+    endif()
 endif()

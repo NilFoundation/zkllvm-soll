@@ -143,11 +143,11 @@ const TypePtr &Identifier::getType() const {
   const Decl *D = getCorrespondDecl();
   if (!D)
     return Expr::getType();
-  if (auto VD = static_cast<const VarDecl *>(D)) {
+  if (auto VD = dynamic_cast<const VarDecl *>(D)) {
     return VD->getType();
-  } else if (auto FD = static_cast<const FunctionDecl *>(D)) {
+  } else if (auto FD = dynamic_cast<const FunctionDecl *>(D)) {
     return FD->getType();
-  } else if (auto CD = static_cast<const ContractDecl *>(D)) {
+  } else if (auto CD = dynamic_cast<const ContractDecl *>(D)) {
     return CD->getType();
   } else if (static_cast<const EventDecl *>(D)) {
     return Expr::getType();

@@ -60,7 +60,7 @@ void FuncSigPrinter::visit(ContractDeclType &C) {
     C.getFallback()->accept(*this);
   }
   for (auto SN : C.getSubNodes()) {
-    if (auto F = static_cast<const FunctionDecl *>(SN)) {
+    if (auto F = dynamic_cast<const FunctionDecl *>(SN)) {
       F->accept(*this);
     }
   }

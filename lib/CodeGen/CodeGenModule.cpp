@@ -1597,7 +1597,7 @@ void CodeGenModule::emitVarDecl(const VarDecl *VD) {
 }
 
 void CodeGenModule::emitStructDecl(const StructDecl *SD) {
-  if (auto STy = static_cast<StructType *>(SD->getType().get())) {
+  if (auto STy = dynamic_cast<StructType *>(SD->getType().get())) {
     std::vector<llvm::Type *> LLVMTy;
     for (auto ET : STy->getElementTypes()) {
       LLVMTy.emplace_back(getLLVMType(ET.get()));
@@ -1803,7 +1803,7 @@ llvm::FunctionType *CodeGenModule::getFunctionType(const CallableVarDecl *CVD) {
   llvm::Type *RetType;
   if (CVD->getReturnParams()->getParamsTy() == nullptr) {
     RetType = VoidTy;
-  } else if (auto RTy = static_cast<ReturnTupleType *>(
+  } else if (auto RTy = dynamic_cast<ReturnTupleType *>(
                  CVD->getReturnParams()->getParamsTy().get())) {
     std::vector<llvm::Type *> LLVMTy;
     for (auto ET : RTy->getElementTypes()) {

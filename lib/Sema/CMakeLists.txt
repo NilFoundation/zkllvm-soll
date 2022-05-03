@@ -13,5 +13,6 @@ add_llvm_library(sollSema
                  LLVMSupport
                  sollAST
                  sollBasic
+
                  crypto3::hash
                  )

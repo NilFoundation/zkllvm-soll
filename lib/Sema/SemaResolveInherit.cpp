@@ -264,10 +264,10 @@ void Sema::InjectInheritContract(std::vector<Decl *> &BaseDecl,
       continue;
     }
 
-    if (auto ParentDecl = static_cast<FunctionDecl *>(*ParentDeclIt)) {
+    if (auto ParentDecl = dynamic_cast<FunctionDecl *>(*ParentDeclIt)) {
       // check cDecl is marked override
       // TODO: function can be overrided by status var....
-      if (auto cFDecl = static_cast<FunctionDecl *>(ChildDecl)) {
+      if (auto cFDecl = dynamic_cast<FunctionDecl *>(ChildDecl)) {
         if (cFDecl->getOverrideSpecifier() == nullptr) {
           Diag(cFDecl->getLocation().getBegin(),
                diag::err_decl_need_to_be_overrided)
@@ -330,7 +330,7 @@ void Sema::InjectInheritContract(std::vector<Decl *> &BaseDecl,
       }
 
       BaseDecl.erase(ParentDeclIt);
-    } else if (auto pDecl = static_cast<VarDecl *>(*ParentDeclIt)) {
+    } else if (auto pDecl = dynamic_cast<VarDecl *>(*ParentDeclIt)) {
       (void)!pDecl; // silence compiler warning
       Diag(ChildDecl->getLocation().getBegin(),
            diag::err_statevar_cannot_be_overrided)

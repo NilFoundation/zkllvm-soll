@@ -216,7 +216,7 @@ ExprValuePtr ExprEmitter::visit(const UnaryOperator *UO) {
 }
 
 bool ExprEmitter::isSigned(const Type *Ty) {
-  if (auto TyNow = static_cast<const IntegerType *>(Ty))
+  if (auto TyNow = dynamic_cast<const IntegerType *>(Ty))
     return TyNow->isSigned();
   else if (static_cast<const BooleanType *>(Ty))
     return false;
@@ -852,7 +852,7 @@ ExprValuePtr ExprEmitter::visit(const AsmIdentifier *YI) {
 }
 
 const Identifier *ExprEmitter::resolveIdentifier(const Expr *E) {
-  if (auto Id = static_cast<const Identifier *>(E)) {
+  if (auto Id = dynamic_cast<const Identifier *>(E)) {
     return Id;
   }
   return nullptr;

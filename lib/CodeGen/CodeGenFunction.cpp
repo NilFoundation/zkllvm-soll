@@ -117,49 +117,49 @@ void CodeGenFunction::generateYulCode(const YulCode *YC) {
 }
 
 void CodeGenFunction::emitStmt(const Stmt *S) {
-  if (auto DS = static_cast<const DeclStmt *>(S)) {
+  if (auto DS = dynamic_cast<const DeclStmt *>(S)) {
     return emitDeclStmt(DS);
   }
-  if (auto ES = static_cast<const ExprStmt *>(S)) {
+  if (auto ES = dynamic_cast<const ExprStmt *>(S)) {
     return emitExprStmt(ES);
   }
-  if (auto B = static_cast<const Block *>(S)) {
+  if (auto B = dynamic_cast<const Block *>(S)) {
     return emitBlock(B);
   }
-  if (auto IS = static_cast<const IfStmt *>(S)) {
+  if (auto IS = dynamic_cast<const IfStmt *>(S)) {
     return emitIfStmt(IS);
   }
-  if (auto WS = static_cast<const WhileStmt *>(S)) {
+  if (auto WS = dynamic_cast<const WhileStmt *>(S)) {
     return emitWhileStmt(WS);
   }
-  if (auto FS = static_cast<const ForStmt *>(S)) {
+  if (auto FS = dynamic_cast<const ForStmt *>(S)) {
     return emitForStmt(FS);
   }
-  if (auto CS = static_cast<const ContinueStmt *>(S)) {
+  if (auto CS = dynamic_cast<const ContinueStmt *>(S)) {
     return emitContinueStmt(CS);
   }
-  if (auto BS = static_cast<const BreakStmt *>(S)) {
+  if (auto BS = dynamic_cast<const BreakStmt *>(S)) {
     return emitBreakStmt(BS);
   }
-  if (auto RS = static_cast<const ReturnStmt *>(S)) {
+  if (auto RS = dynamic_cast<const ReturnStmt *>(S)) {
     return emitReturnStmt(RS);
   }
-  if (auto ES = static_cast<const EmitStmt *>(S)) {
+  if (auto ES = dynamic_cast<const EmitStmt *>(S)) {
     return emitEmitStmt(ES);
   }
-  if (auto FS = static_cast<const AsmForStmt *>(S)) {
+  if (auto FS = dynamic_cast<const AsmForStmt *>(S)) {
     return emitAsmForStmt(FS);
   }
-  if (auto SS = static_cast<const AsmSwitchStmt *>(S)) {
+  if (auto SS = dynamic_cast<const AsmSwitchStmt *>(S)) {
     return emitAsmSwitchStmt(SS);
   }
-  if (auto AS = static_cast<const AsmAssignmentStmt *>(S)) {
+  if (auto AS = dynamic_cast<const AsmAssignmentStmt *>(S)) {
     return emitAsmAssignmentStmt(AS);
   }
-  if (auto FDS = static_cast<const AsmFunctionDeclStmt *>(S)) {
+  if (auto FDS = dynamic_cast<const AsmFunctionDeclStmt *>(S)) {
     return emitAsmFunctionDeclStmt(FDS);
   }
-  if (auto LS = static_cast<const AsmLeaveStmt *>(S)) {
+  if (auto LS = dynamic_cast<const AsmLeaveStmt *>(S)) {
     return emitAsmLeaveStmt(LS);
   }
 }
@@ -190,9 +190,9 @@ void CodeGenFunction::emitDeclStmt(const DeclStmt *DS) {
 
 llvm::Value *CodeGenFunction::emitVarDecl(const Decl *VD) {
   TypePtr Ty;
-  if (auto D = static_cast<const VarDecl *>(VD))
+  if (auto D = dynamic_cast<const VarDecl *>(VD))
     Ty = D->getType();
-  else if (auto D = static_cast<const AsmVarDecl *>(VD))
+  else if (auto D = dynamic_cast<const AsmVarDecl *>(VD))
     Ty = D->getType();
   auto *LLVMTy = CGM.getLLVMType(Ty.get());
 
@@ -368,9 +368,9 @@ void CodeGenFunction::emitAsmForStmt(const AsmForStmt *FS) {
 void CodeGenFunction::emitAsmSwitchCase(const AsmSwitchCase *SC,
                                         llvm::SwitchInst *Switch,
                                         llvm::BasicBlock *SwitchExit) {
-  if (auto CS = static_cast<const AsmCaseStmt *>(SC)) {
+  if (auto CS = dynamic_cast<const AsmCaseStmt *>(SC)) {
     emitAsmCaseStmt(CS, Switch);
-  } else if (auto DS = static_cast<const AsmDefaultStmt *>(SC)) {
+  } else if (auto DS = dynamic_cast<const AsmDefaultStmt *>(SC)) {
     emitAsmDefaultStmt(DS, Switch);
   } else { ///< Got something not a "case" nor a "default".
     __builtin_unreachable();

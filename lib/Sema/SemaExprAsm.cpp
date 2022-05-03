@@ -564,7 +564,7 @@ std::unique_ptr<Expr> Sema::CreateAsmCallExpr(SourceRange L, ExprPtr &&Callee,
   }
 
   std::unique_ptr<Expr> CE = nullptr;
-  if (auto I = static_cast<AsmIdentifier *>(Callee.get())) {
+  if (auto I = dynamic_cast<AsmIdentifier *>(Callee.get())) {
     if (I->isSpecialIdentifier()) {
       // TODO: handle invalid FunctionType.
       FunctionType *FTy = static_cast<FunctionType *>(Callee->getType().get());

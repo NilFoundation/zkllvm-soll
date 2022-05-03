@@ -66,7 +66,7 @@ public:
       for (auto &Ty : TupleTy->getElementTypes()) {
         if (auto *UT = static_cast<UnresolveType *>(Ty.get())) {
           Ty = handleUnresolveType(Actions, UT);
-        } else if (auto TP = static_cast<TupleType *>(Ty.get())) {
+        } else if (auto TP = dynamic_cast<TupleType *>(Ty.get())) {
           handleUnresolveTupleType(TP);
         }
       }
@@ -89,7 +89,7 @@ public:
       Actions.CurrentScope()->addUnresolvedExternal(&I);
       return;
     }
-    if (auto SD = static_cast<StructDecl *>(D)) {
+    if (auto SD = dynamic_cast<StructDecl *>(D)) {
       auto Ty = SD->getConstructorType();
       I.setType(Ty);
       I.setSpecialIdentifier(Identifier::SpecialIdentifier::struct_constructor);
@@ -161,7 +161,7 @@ public:
              "Not a Library!");
       UF.addLibrary(Lib);
     }
-    if (auto *UT = static_cast<UnresolveType *>(UF.getType().get())) {
+    if (auto UT = dynamic_cast<UnresolveType *>(UF.getType().get())) {
       UF.setType(handleUnresolveType(Actions, UT));
     }
   }
@@ -192,12 +192,13 @@ public:
     Actions.addDecl(&ED);
     DeclVisitor::visit(ED);
   }
+
   // void visit(ParamListType &) override;
   // void visit(CallableVarDeclType &) override;
   void visit(VarDeclType &VD) override {
     Actions.addDecl(&VD);
     // TODO: handle ArrayType of UnresolveType
-    if (auto *UT = static_cast<UnresolveType *>(VD.getType().get())) {
+    if (auto UT = dynamic_cast<UnresolveType *>(VD.getType().get())) {
       VD.setType(handleUnresolveType(Actions, UT));
     }
     DeclVisitor::visit(VD);
@@ -213,9 +214,9 @@ public:
     }
     Actions.addDecl(&SD);
     DeclVisitor::visit(SD);
-    if (auto STy = static_cast<StructType *>(SD.getType().get())) {
+    if (auto STy = dynamic_cast<StructType *>(SD.getType().get())) {
       for (auto &Ty : STy->getElementTypes()) {
-        if (auto *UT = static_cast<UnresolveType *>(Ty.get())) {
+        if (auto UT = dynamic_cast<UnresolveType *>(Ty.get())) {
           Ty = handleUnresolveType(Actions, UT);
         }
       }
@@ -278,7 +279,7 @@ void IdentifierResolver::visit(MemberExprType &M) {
     Sema::SemaScope MemberAccessScope{&Actions, 0, false};
 
     if (Base->getType() == nullptr) {
-      if (auto I = static_cast<Identifier *>(Base)) {
+      if (auto I = dynamic_cast<Identifier *>(Base)) {
         auto BaseName = I->getName().str();
         const std::vector<std::string> GlobalPassList{"block", "msg", "tx"};
 
@@ -321,11 +322,11 @@ void IdentifierResolver::visit(MemberExprType &M) {
           assert(I && "Unimplement SpecialIdentifier Base");
         }
       } else if (auto C =
-                     static_cast<ContractDecl *>(I->getCorrespondDecl())) {
+                     dynamic_cast<ContractDecl *>(I->getCorrespondDecl())) {
         // Inheritance call with Contract name
         for (auto F : C->getFuncs())
           Actions.addDecl(F);
-      } else if (auto CT = static_cast<ContractType *>(I->getType().get())) {
+      } else if (auto CT = dynamic_cast<ContractType *>(I->getType().get())) {
         // Contract external call
         if (CT->getDecl()) {
           for (auto F : CT->getDecl()->getFuncs())
@@ -337,7 +338,7 @@ void IdentifierResolver::visit(MemberExprType &M) {
       }
     } break;
     case Type::Category::Struct: {
-      if (auto ST = static_cast<StructType *>(Base->getType().get())) {
+      if (auto ST = dynamic_cast<StructType *>(Base->getType().get())) {
         auto Types = ST->getElementTypes();
         auto ElementName = M.getName()->getName().str();
 

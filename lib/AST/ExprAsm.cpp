@@ -27,9 +27,9 @@ AsmIdentifier::AsmIdentifier(const Token &T, SpecialIdentifier D, TypePtr Ty,
 
 void AsmIdentifier::updateTypeFromCurrentDecl() {
   Decl *D = getCorrespondDecl();
-  if (auto VD = static_cast<AsmVarDecl *>(D)) {
+  if (auto VD = dynamic_cast<AsmVarDecl *>(D)) {
     setType(VD->getType());
-  } else if (auto FD = static_cast<AsmFunctionDecl *>(D)) {
+  } else if (auto FD = dynamic_cast<AsmFunctionDecl *>(D)) {
     setType(FD->getType());
   } else {
     assert(false && "unknown decl");

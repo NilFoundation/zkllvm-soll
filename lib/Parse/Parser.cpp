@@ -1790,7 +1790,7 @@ std::unique_ptr<Expr> Parser::parseLeftHandSideExpression(
     case tok::l_paren: {
       ConsumeParen(); // '('
       bool IsAbiDecode = false;
-      if (auto ME = static_cast<MemberExpr *>(Expression.get())) {
+      if (auto ME = dynamic_cast<MemberExpr *>(Expression.get())) {
         auto Name = ME->getName();
         IsAbiDecode = Name->isSpecialIdentifier() &&
                       Name->getSpecialIdentifier() ==
