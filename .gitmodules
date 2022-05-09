@@ -1,7 +1,4 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-[submodule "utils/ewasm-testbench"]
-	path = utils/ewasm-testbench
-	url = ../soll-ewasm-testbench.git
 [submodule "utils/crypto/codec"]
 	path = utils/crypto/codec
 	url = git@github.com:nilfoundation/crypto3-codec.git
