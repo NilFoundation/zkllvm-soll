@@ -45,7 +45,7 @@ static cl::opt<DeployPlatformKind> DeployPlatform(
     cl::cat(SollCategory));
 
 static cl::opt<ActionKind> Action(
-    "action", cl::Optional, cl::ValueRequired, cl::init(EmitWasm),
+    "action", cl::Optional, cl::ValueRequired, cl::init(EmitLLVM),
     cl::values(clEnumVal(ASTDump, "")), cl::values(clEnumVal(EmitAssembly, "")),
     cl::values(clEnumVal(EmitBC, "")), cl::values(clEnumVal(EmitLLVM, "")),
     cl::values(clEnumVal(EmitLLVMOnly, "")),
