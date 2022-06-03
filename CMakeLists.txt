@@ -88,8 +88,11 @@ add_subdirectory(tools)
 add_subdirectory(utils)
 
 if(SOLL_INCLUDE_TESTS)
+    find_package(Catch2 REQUIRED)
+
     include(CTest)
     include(Catch)
+
     add_subdirectory(unittests)
     add_subdirectory(test)
     if(SOLL_RUNTIME_TESTS)
