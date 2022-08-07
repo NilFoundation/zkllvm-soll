@@ -208,6 +208,37 @@ add_subdirectory(lib)
 add_subdirectory(tools)
 add_subdirectory(utils)
 
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+if(EXISTS ${LLVM_MAIN_SRC_DIR}/utils/lit/lit.py)
+    # Note: path not really used, except for checking if lit was found
+    set(LLVM_LIT ${LLVM_MAIN_SRC_DIR}/utils/lit/lit.py)
+else()
+    # Seek installed Lit.
+    find_program(LLVM_LIT
+                 NAMES llvm-lit lit.py lit
+                 PATHS "${LLVM_MAIN_SRC_DIR}/utils/lit"
+                 DOC "Path to lit.py")
+endif()
+
+if(LLVM_LIT)
+    # Define the default arguments to use with 'lit', and an option for the user
+    # to override.
+    set(LIT_ARGS_DEFAULT "-sv")
+    if (MSVC OR XCODE)
+        set(LIT_ARGS_DEFAULT "${LIT_ARGS_DEFAULT} --no-progress-bar")
+    endif()
+    set(LLVM_LIT_ARGS "${LIT_ARGS_DEFAULT}" CACHE STRING "Default options for lit")
+
+    get_errc_messages(LLVM_LIT_ERRC_MESSAGES)
+
+    # On Win32 hosts, provide an option to specify the path to the GnuWin32 tools.
+    if( WIN32 AND NOT CYGWIN )
+        set(LLVM_LIT_TOOLS_DIR "" CACHE PATH "Path to GnuWin32 tools")
+    endif()
+else()
+    set(LLVM_INCLUDE_TESTS OFF)
+endif()
+
 if(SOLL_INCLUDE_TESTS)
     include(CTest)
     include(Catch)

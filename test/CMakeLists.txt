@@ -1,25 +1,4 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-if(EXISTS ${LLVM_EXTERNAL_LIT})
-else()
-  if(EXISTS ${LLVM_BINARY_DIR}/build/utils/lit/lit.py)
-    set(LLVM_LIT ${LLVM_BINARY_DIR}/build/utils/lit/lit.py)
-  else()
-    # Seek installed Lit.
-    find_program(LLVM_LIT
-      NAMES llvm-lit lit.py lit
-      PATHS "${LLVM_BINARY_DIR}/build/utils/lit"
-      DOC "Path to lit.py")
-  endif()
-
-  if(EXISTS ${LLVM_LIT})
-    set(LLVM_EXTERNAL_LIT "${LLVM_LIT}" CACHE PATH "" FORCE)
-    set(LIT_ARGS_DEFAULT "-sv")
-    if (MSVC OR XCODE)
-      set(LIT_ARGS_DEFAULT "${LIT_ARGS_DEFAULT} --no-progress-bar")
-    endif()
-    set(LLVM_LIT_ARGS "${LIT_ARGS_DEFAULT}" CACHE STRING "Default options for lit")
-  endif()
-endif()
 
 configure_lit_site_cfg(
   ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in
@@ -69,7 +48,6 @@ if(SOLL_COVERAGE)
     DEPENDENCIES soll unittests
     BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     EXCLUDE
-      "${PROJECT_SOURCE_DIR}/utils/SHA-3/*"
       "${PROJECT_SOURCE_DIR}/utils/json/*"
       "${PROJECT_SOURCE_DIR}/utils/unittests/*"
     )
@@ -79,7 +57,6 @@ if(SOLL_COVERAGE)
     DEPENDENCIES soll unittests
     BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     EXCLUDE
-      "${PROJECT_SOURCE_DIR}/utils/SHA-3/*"
       "${PROJECT_SOURCE_DIR}/utils/json/*"
       "${PROJECT_SOURCE_DIR}/utils/unittests/*"
     )

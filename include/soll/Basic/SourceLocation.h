@@ -104,8 +104,8 @@ public:
   SourceLocation getBegin() const { return B; }
   SourceLocation getEnd() const { return E; }
 
-  void setBegin(SourceLocation b) { B = b; }
-  void setEnd(SourceLocation e) { E = e; }
+  void setBegin(const SourceLocation &b) { B = b; }
+  void setEnd(const SourceLocation &e) { E = e; }
 
   bool isValid() const { return B.isValid() && E.isValid(); }
   bool isInvalid() const { return !isValid(); }
